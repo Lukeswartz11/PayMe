@@ -708,8 +708,65 @@ input:focus-visible, select:focus-visible, button:focus-visible {
   .receipt-category-grid { grid-template-columns: 1fr; }
 }
 
+/* iPhone-sized screens: 375px through 430px wide */
+@media (max-width: 600px) {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  body {
+    background-attachment: fixed;
+    background-size: auto 100svh;
+    background-position: center top;
+  }
+  .desk {
+    width: 100%;
+    max-width: none;
+    overflow-x: clip;
+    padding: 0 0.75rem 2rem;
+  }
+  .cover {
+    margin-top: 0.75rem;
+    padding: 1.25rem;
+    gap: 1rem;
+  }
+  .title { font-size: clamp(2.35rem, 13vw, 3.25rem); }
+  .subtitle { font-size: 0.95rem; }
+  .cover-stamp {
+    width: 88px;
+    height: 88px;
+    margin-top: 0;
+  }
+  .tab-list {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 0.55rem;
+  }
+  .tab-button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 0.6rem 0.75rem;
+  }
+  .panel {
+    margin-top: 0.75rem;
+    padding: 1.25rem;
+  }
+  .panel-title { font-size: 1.3rem; }
+  .inline-form { max-width: none; }
+  .settle-row {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+  .settle-row .amount { margin-left: auto; }
+  .receipt { padding-left: 0.9rem; padding-right: 0.9rem; }
+  .receipt-edge { margin-left: -0.9rem; margin-right: -0.9rem; }
+}
+
 @media (max-width: 460px) {
   .expense-form { grid-template-columns: 1fr; }
   .payment-form { grid-template-columns: 1fr; }
-  .tab-button { flex-basis: 100%; }
+  .tab-button { flex-basis: auto; }
 }
