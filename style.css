@@ -30,23 +30,30 @@
   * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }
 
-html, body {
+html {
   margin: 0;
   padding: 0;
-  background: var(--stamp-red);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background-image: url("Brutus_Front.png"), linear-gradient(to bottom, #890003 0%, #cf0125 100%);
+  background-repeat: no-repeat, no-repeat;
+  background-position: center bottom, top center;
+  background-size: 90% auto, auto;
+  background-attachment: fixed, scroll;
   color: var(--ink);
   font-family: var(--font-body);
   font-size: 18px;
   font-weight: 700;
-  min-height: 100%;
-}
-
-body {
-  background-image: url("brutus_back.jpg");
+  min-height: 100vh;
+  /* background-image: url("brutus_back.jpg");
   background-position: center bottom;
   background-size: cover;
   background-repeat: no-repeat;
-  background-attachment: scroll;
+  background-attachment: scroll; */
 }
 
 ::selection { background: var(--stamp-red); color: var(--paper); }
@@ -752,11 +759,6 @@ input:focus-visible, select:focus-visible, button:focus-visible {
   html {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
-  }
-  body {
-    background-attachment: scroll;
-    background-size: auto 100svh;
-    background-position: center top;
   }
   .desk {
     width: 100%;
