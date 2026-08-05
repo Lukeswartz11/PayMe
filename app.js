@@ -156,14 +156,25 @@ function renderFormOptions() {
   payerSelect.innerHTML = '';
   if (state.people.length === 0) {
     payerSelect.innerHTML = '<option value="">Add roommates first</option>';
+    payerSelect.disabled = true;
   } else {
-    state.people.forEach((name) => {
+    const canLog = state.people.includes('Luke');
+    const payers = canLog ? ['Luke'] : state.people;
+    payers.forEach((name) => {
       const opt = document.createElement('option');
       opt.value = name;
       opt.textContent = name;
       payerSelect.appendChild(opt);
     });
-    if (state.people.includes(prevPayer)) payerSelect.value = prevPayer;
+    if (canLog) {
+      payerSelect.value = 'Luke';
+      payerSelect.disabled = true;
+    } else if (state.people.includes(prevPayer)) {
+      payerSelect.value = prevPayer;
+      payerSelect.disabled = false;
+    } else {
+      payerSelect.disabled = false;
+    }
   }
 
   const checkedBefore = new Set(

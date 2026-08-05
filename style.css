@@ -46,7 +46,7 @@ body {
   background-position: center bottom;
   background-size: cover;
   background-repeat: no-repeat;
-  background-attachment: fixed;
+  background-attachment: scroll;
 }
 
 ::selection { background: var(--stamp-red); color: var(--paper); }
@@ -258,6 +258,11 @@ select {
 
 input[type="date"] {
   padding-right: 0.8rem;
+  -webkit-appearance: textfield;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
 }
 
 .field-amount .amount-wrap {
@@ -338,8 +343,13 @@ input:focus-visible, select:focus-visible, button:focus-visible {
 /* expense form grid */
 .expense-form {
   display: grid;
-  grid-template-columns: 1.6fr 1fr 1fr 1fr;
+  grid-template-columns: 0.8fr 0.8fr 1fr 1fr;
   gap: 1.1rem 1rem;
+}
+.expense-form .field:nth-child(1),
+.expense-form .field:nth-child(4),
+.expense-form .field:nth-child(5) {
+  grid-column: 1 / span 2;
 }
 .payment-form {
   display: grid;
@@ -744,7 +754,7 @@ input:focus-visible, select:focus-visible, button:focus-visible {
     text-size-adjust: 100%;
   }
   body {
-    background-attachment: fixed;
+    background-attachment: scroll;
     background-size: auto 100svh;
     background-position: center top;
   }
