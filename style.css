@@ -42,11 +42,21 @@ html, body {
 }
 
 body {
+  position: relative;
+  isolation: isolate;
+  background: transparent;
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: var(--stamp-red);
   background-image: url("brutus_back.jpg");
   background-position: center top;
   background-size: cover;
   background-repeat: no-repeat;
-  background-attachment: fixed;
 }
 
 ::selection { background: var(--stamp-red); color: var(--paper); }
@@ -699,6 +709,7 @@ input:focus-visible, select:focus-visible, button:focus-visible {
    RESPONSIVE
    ============================================================ */
 @media (max-width: 700px) {
+  body::before { background-size: contain; }
   .cover { flex-direction: column; }
   .cover-stamp { align-self: flex-end; }
   .expense-form { grid-template-columns: 1fr 1fr; }
