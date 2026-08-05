@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pay Luke — Split the Bills</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,900;1,9..144,600&family=Space+Mono:wght@400;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="desk">
+
+    <!-- HEADER -->
+    <header class="cover">
+      <div class="cover-inner">
+        <p class="eyebrow">Da Crib &middot; Payments</p>
+        <h1 class="title">Pay Luke</h1>
+        <p class="subtitle">Every utility bill, tallied to the penny — so nobody has to remember who paid for what.</p>
+      </div>
+      <div class="cover-stamp" aria-hidden="true">
+        <svg viewBox="0 0 120 120" class="stamp-ring">
+          <circle cx="60" cy="60" r="52" />
+          <text><textPath href="#circlePath" startOffset="0">SPLIT FAIR &middot; PAY UP &middot; DONT FIGHT &middot; PLS &middot;</textPath></text>
+          <path id="circlePath" d="M 60,60 m -52,0 a 52,52 0 1,1 104,0 a 52,52 0 1,1 -104,0" fill="none"/>
+        </svg>
+        <span class="stamp-center">$</span>
+      </div>
+    </header>
+
+    <nav class="tab-list" aria-label="Ledger sections" role="tablist">
+      <button id="tab-settle" class="tab-button" type="button" role="tab" aria-selected="true" aria-controls="panel-settle" data-tab="settle">Settle up</button>
+      <button id="tab-balances" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-balances" data-tab="balances">Balances</button>
+      <button id="tab-expense" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-expense" data-tab="expense">Log expenses</button>
+      <button id="tab-payments" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-payments" data-tab="payments">Payments</button>
+      <button id="tab-tally" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-tally" data-tab="tally">Receipts</button>
+      <button id="tab-log" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-log" data-tab="log">Log</button>
+    </nav>
+
+    <main>
+
+      <!-- ADD EXPENSE -->
+      <section id="panel-expense" class="panel expense-form-panel tab-panel" role="tabpanel" aria-labelledby="tab-expense" hidden>
+        <h2 class="panel-title"><span class="panel-num">02</span> Log an expense</h2>
+        <form id="expense-form" class="expense-form">
+          <div class="field">
+            <label for="exp-category">Category</label>
+            <select id="exp-category" required>
+              <option value="gas">Gas</option>
+              <option value="electric">Electric</option>
+              <option value="internet">Internet</option>
+            </select>
+          </div>
+          <div class="field field-amount">
+            <label for="exp-amount">Amount</label>
+            <div class="amount-wrap">
+              <span>$</span>
+              <input type="number" id="exp-amount" placeholder="0.00" step="0.01" min="0.01" required>
+            </div>
+          </div>
+          <div class="field">
+            <label for="exp-payer">Who paid</label>
+            <select id="exp-payer" required></select>
+          </div>
+          <div class="field">
+            <label for="exp-month">Billing month</label>
+            <input type="month" id="exp-month" required>
+          </div>
+          <div class="field">
+            <label for="exp-date">Date sumbitted</label>
+            <input type="date" id="exp-date" required>
+          </div>
+          <fieldset class="field field-split">
+            <legend>Split between</legend>
+            <div id="split-checkboxes" class="split-checkboxes"></div>
+          </fieldset>
+          <button type="submit" class="btn btn-red btn-wide">Add to the ledger</button>
+        </form>
+      </section>
+
+      <!-- EXPENSE LIST -->
+      <section id="panel-tally" class="panel receipt-panel tab-panel" role="tabpanel" aria-labelledby="tab-tally" hidden>
+        <h2 class="panel-title"><span class="panel-num">05</span> Receipts</h2>
+        <p class="panel-hint">Monthly utility spending, organized by category.</p>
+        <div class="receipt">
+          <div class="receipt-edge" aria-hidden="true"></div>
+          <ul id="expense-list" class="receipt-body"></ul>
+          <p id="expense-empty" class="empty-note">No expenses logged yet. The first one's always the hardest.</p>
+          <div class="receipt-edge receipt-edge-bottom" aria-hidden="true"></div>
+        </div>
+      </section>
+
+      <!-- BALANCES -->
+      <section id="panel-balances" class="panel balances-panel tab-panel" role="tabpanel" aria-labelledby="tab-balances" hidden>
+        <h2 class="panel-title"><span class="panel-num">01</span> Who stands where</h2>
+        <div id="balances-grid" class="balances-grid"></div>
+      </section>
+
+      <!-- PAYMENTS -->
+      <section id="panel-payments" class="panel payments-panel tab-panel" role="tabpanel" aria-labelledby="tab-payments" hidden>
+        <h2 class="panel-title"><span class="panel-num">03</span> Mark a payment</h2>
+        <p class="panel-hint">Record a partial or full payment toward what a roommate owes.</p>
+        <form id="payment-form" class="payment-form">
+          <div class="field">
+            <label for="payment-from">Who paid</label>
+            <select id="payment-from" required></select>
+          </div>
+          <div class="field">
+            <label for="payment-to">Who was paid</label>
+            <select id="payment-to" required></select>
+          </div>
+          <div class="field field-amount">
+            <label for="payment-amount">Amount paid</label>
+            <div class="amount-wrap">
+              <span>$</span>
+              <input type="number" id="payment-amount" placeholder="0.00" step="0.01" min="0.01" required>
+            </div>
+          </div>
+          <div class="field">
+            <label for="payment-date">Date</label>
+            <input type="date" id="payment-date" required>
+          </div>
+          <button type="submit" class="btn btn-red btn-wide">Record payment</button>
+        </form>
+        <ul id="payment-list" class="payment-list"></ul>
+        <p id="payment-empty" class="empty-note">No payments recorded yet.</p>
+      </section>
+
+      <!-- SETTLE UP -->
+      <section id="panel-settle" class="panel settle-panel tab-panel" role="tabpanel" aria-labelledby="tab-settle">
+        <h2 class="panel-title"><span class="panel-num">04</span> Settle up</h2>
+        <p class="panel-hint">The fewest payments needed to even everything out.</p>
+        <ul id="settle-list" class="settle-list"></ul>
+        <p id="settle-empty" class="empty-note">Everyone's square. Nicely done.</p>
+      </section>
+
+      <!-- ACTIVITY LOG -->
+      <section id="panel-log" class="panel log-panel tab-panel" role="tabpanel" aria-labelledby="tab-log" hidden>
+        <h2 class="panel-title"><span class="panel-num">06</span> Activity log</h2>
+        <div class="log-sections">
+          <section class="log-section log-payments">
+            <h3>Payments by date</h3>
+            <ol id="log-payment-list" class="log-list"></ol>
+            <p id="log-payment-empty" class="empty-note">No payments recorded yet.</p>
+          </section>
+          <section class="log-section log-expenses">
+            <h3>Expenses by date</h3>
+            <ol id="log-expense-list" class="log-list"></ol>
+            <p id="log-expense-empty" class="empty-note">No expenses logged yet.</p>
+          </section>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="desk-footer">
+      <p>Kept in this browser only — data lives in local storage, not the cloud.</p>
+    </footer>
+  </div>
+
+<script src="app.js"></script>
+</body>
+</html>
