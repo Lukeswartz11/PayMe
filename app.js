@@ -61,8 +61,6 @@ const paymentFrom = document.getElementById('payment-from');
 const paymentTo = document.getElementById('payment-to');
 const paymentAmount = document.getElementById('payment-amount');
 const paymentDate = document.getElementById('payment-date');
-const paymentList = document.getElementById('payment-list');
-const paymentEmpty = document.getElementById('payment-empty');
 
 const logPaymentList = document.getElementById('log-payment-list');
 const logPaymentEmpty = document.getElementById('log-payment-empty');
@@ -306,24 +304,6 @@ function deletePayment(id) {
   renderAll();
 }
 
-function renderPayments() {
-  paymentList.innerHTML = '';
-  paymentEmpty.style.display = state.settlements.length ? 'none' : 'block';
-  state.settlements.forEach((payment) => {
-    const li = document.createElement('li');
-    li.className = 'payment-row';
-    li.innerHTML = `<span>${escapeHtml(payment.from)} paid ${escapeHtml(payment.to)}</span><span>${money(payment.amount)} · ${formatDate(payment.date)}</span>`;
-    const deleteButton = document.createElement('button');
-    deleteButton.type = 'button';
-    deleteButton.className = 'receipt-del';
-    deleteButton.setAttribute('aria-label', `Delete payment from ${payment.from}`);
-    deleteButton.textContent = '×';
-    deleteButton.addEventListener('click', () => deletePayment(payment.id));
-    li.appendChild(deleteButton);
-    paymentList.appendChild(li);
-  });
-}
-
 function renderActivityLog() {
   const payments = [...state.settlements].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   logPaymentList.innerHTML = '';
@@ -347,9 +327,16 @@ function renderActivityLog() {
   logExpenseList.innerHTML = '';
   logExpenseEmpty.style.display = expenses.length ? 'none' : 'block';
   expenses.forEach((expense) => {
+    const splitLabel =
+      expense.splitAmong.length === state.people.length
+        ? 'everyone'
+        : expense.splitAmong.length === 2
+        ? expense.splitAmong.join(' & ')
+        : expense.splitAmong.join(', ');
+
     const item = document.createElement('li');
     item.className = 'log-row log-expense-row';
-    item.innerHTML = `<div class="log-entry-details"><span class="log-date">${formatDate(expense.date)}</span><span>${categoryLabel(expenseCategory(expense))}</span><span> ${escapeHtml(expense.paidBy)}</span></div><span class="log-amount">${money(expense.amount)}</span>`;
+    item.innerHTML = `<div class="log-entry-details"><span class="log-date">${formatDate(expense.date)}</span><div class="log-entry-row"><span class="log-entry-main">${escapeHtml(expense.paidBy)}</span><span class="log-entry-split">→ ${escapeHtml(splitLabel)}</span></div><span>${categoryLabel(expenseCategory(expense))}</span></div><span class="log-amount">${money(expense.amount)}</span>`;
     const deleteButton = document.createElement('button');
     deleteButton.type = 'button';
     deleteButton.className = 'log-delete-button';
@@ -601,7 +588,6 @@ function renderAll() {
   const balance = computeBalances();
   renderBalances(balance);
   renderPaymentOptions();
-  renderPayments();
   renderSettlements(computeSettlements(balance));
   renderActivityLog();
 }

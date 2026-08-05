@@ -249,6 +249,21 @@ select {
   outline-offset: 2px;
 }
 
+input[type="date"],
+input[type="month"],
+select {
+  min-height: 2.9rem;
+  line-height: 1.3;
+}
+
+input[type="date"] {
+  padding-right: 0.8rem;
+}
+
+.field-amount .amount-wrap {
+  min-height: 2.9rem;
+}
+
 input:focus-visible, select:focus-visible, button:focus-visible {
   outline: 2.5px solid var(--brass);
 }
@@ -443,13 +458,27 @@ input:focus-visible, select:focus-visible, button:focus-visible {
   width: 100%;
   overflow-wrap: anywhere;
   display: grid;
-  gap: 0.1rem;
+  gap: 0.15rem;
 }
 .log-entry-details span { display: block; }
+.log-entry-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+}
+.log-entry-main {
+  font-weight: 700;
+}
+.log-entry-split {
+  font-size: 0.58rem;
+  color: var(--ink-soft);
+}
 .log-entry-details .log-date {
   font-family: var(--font-mono);
   color: var(--ink-soft);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
 }
 .log-row .log-amount {
   font-family: var(--font-mono);
