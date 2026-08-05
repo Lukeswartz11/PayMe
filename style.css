@@ -43,7 +43,7 @@ html, body {
 
 body {
   background-image: url("brutus_back.jpg");
-  background-position: center top;
+  background-position: center bottom;
   background-size: cover;
   background-repeat: no-repeat;
   background-attachment: fixed;
@@ -468,7 +468,7 @@ input:focus-visible, select:focus-visible, button:focus-visible {
   font-size: 0.7rem;
   cursor: pointer;
 }
-.log-expense-row.delete-ready .log-delete-button { display: block; }
+.log-row.delete-ready .log-delete-button { display: block; }
 
 /* ============================================================
    RECEIPT / TALLY

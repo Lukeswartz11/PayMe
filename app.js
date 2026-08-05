@@ -330,8 +330,16 @@ function renderActivityLog() {
   logPaymentEmpty.style.display = payments.length ? 'none' : 'block';
   payments.forEach((payment) => {
     const item = document.createElement('li');
-    item.className = 'log-row';
+    item.className = 'log-row log-payment-row';
     item.innerHTML = `<div class="log-entry-details"><span class="log-date">${formatDate(payment.date)}</span><span>Payment</span><span> ${escapeHtml(payment.from)} to ${escapeHtml(payment.to)}</span></div><span class="log-amount">${money(payment.amount)}</span>`;
+    const deleteButton = document.createElement('button');
+    deleteButton.type = 'button';
+    deleteButton.className = 'log-delete-button';
+    deleteButton.textContent = 'Delete';
+    deleteButton.setAttribute('aria-label', `Delete payment from ${formatDate(payment.date)}`);
+    deleteButton.addEventListener('click', () => deletePayment(payment.id));
+    item.appendChild(deleteButton);
+    addHoldToRevealDelete(item);
     logPaymentList.appendChild(item);
   });
 
