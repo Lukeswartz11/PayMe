@@ -67,12 +67,22 @@
           </div>
           <div class="field">
             <label for="exp-month">Billing month</label>
-            <input type="month" id="exp-month" required>
+            <select id="exp-month" required>
+              <option value="01">January</option>
+              <option value="02">February</option>
+              <option value="03">March</option>
+              <option value="04">April</option>
+              <option value="05">May</option>
+              <option value="06">June</option>
+              <option value="07">July</option>
+              <option value="08">August</option>
+              <option value="09">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
           </div>
-          <div class="field">
-            <label for="exp-date">Date submitted</label>
-            <input type="date" id="exp-date" required readonly>
-          </div>
+          <input type="hidden" id="exp-date">
           <fieldset class="field field-split">
             <legend>Split between</legend>
             <div id="split-checkboxes" class="split-checkboxes"></div>
@@ -119,10 +129,7 @@
               <input type="number" id="payment-amount" placeholder="0.00" step="0.01" min="0.01" required>
             </div>
           </div>
-          <div class="field">
-            <label for="payment-date">Date Submitted</label>
-            <input type="date" id="payment-date" required readonly>
-          </div>
+          <input type="hidden" id="payment-date">
           <button type="submit" class="btn btn-red btn-wide">Record payment</button>
         </form>
       </section>

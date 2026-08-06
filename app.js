@@ -84,7 +84,7 @@ function currentEasternDate() {
 }
 
 function currentEasternMonth() {
-  return currentEasternDate().slice(0, 7);
+  return currentEasternDate().slice(5, 7);
 }
 
 dateInput.value = currentEasternDate();
@@ -236,6 +236,7 @@ expenseForm.addEventListener('submit', (e) => {
     return;
   }
 
+  const year = currentEasternDate().slice(0, 4);
   state.expenses.unshift({
     id: uid(),
     desc: categoryLabel(category),
@@ -244,7 +245,7 @@ expenseForm.addEventListener('submit', (e) => {
     paidBy,
     splitAmong,
     date: currentEasternDate(),
-    month,
+    month: `${year}-${month}`,
   });
   saveState();
 
