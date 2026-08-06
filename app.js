@@ -3,6 +3,7 @@
 // =============================================================
 let state = { people: [], expenses: [], settlements: [] };
 const STORAGE_KEY = 'payme-local-state';
+const API_BASE = 'https://payme-9w80.onrender.com';
 
 const DEFAULT_STATE = {
   people: ['Luke', 'Andrew', 'Logan', 'Kai', 'Carson', 'conner'],
@@ -28,10 +29,14 @@ function saveLocalState() {
   }
 }
 
+function apiUrl(path) {
+  return `${API_BASE}${path}`;
+}
+
 async function loadState() {
   const localState = loadLocalState();
   try {
-    const response = await fetch('/api/state');
+    const response = await fetch(apiUrl('/api/state'));
     if (!response.ok) throw new Error('Failed to load state');
     const data = await response.json();
     const loaded = {
@@ -54,7 +59,7 @@ async function initState() {
 
 async function createExpense(expense) {
   try {
-    const response = await fetch('/api/expenses', {
+    const response = await fetch(apiUrl('/api/expenses'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(expense),
@@ -69,7 +74,7 @@ async function createExpense(expense) {
 
 async function createSettlement(settlement) {
   try {
-    const response = await fetch('/api/settlements', {
+    const response = await fetch(apiUrl('/api/settlements'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settlement),
@@ -84,7 +89,7 @@ async function createSettlement(settlement) {
 
 async function createPerson(name) {
   try {
-    const response = await fetch('/api/people', {
+    const response = await fetch(apiUrl('/api/people'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
@@ -99,7 +104,7 @@ async function createPerson(name) {
 
 async function deleteExpenseById(id) {
   try {
-    const response = await fetch(`/api/expenses/${id}`, { method: 'DELETE' });
+    const response = await fetch(apiUrl(`/api/expenses/${id}`), { method: 'DELETE' });
     if (!response.ok) throw new Error('Could not delete expense');
   } catch (error) {
     console.warn('Expense delete backend unavailable, removing locally.', error);
@@ -109,7 +114,7 @@ async function deleteExpenseById(id) {
 
 async function deleteSettlementById(id) {
   try {
-    const response = await fetch(`/api/settlements/${id}`, { method: 'DELETE' });
+    const response = await fetch(apiUrl(`/api/settlements/${id}`), { method: 'DELETE' });
     if (!response.ok) throw new Error('Could not delete payment');
   } catch (error) {
     console.warn('Payment delete backend unavailable, removing locally.', error);
@@ -118,7 +123,7 @@ async function deleteSettlementById(id) {
 }
 
 async function deletePersonByName(name) {
-  const response = await fetch(`/api/people/${encodeURIComponent(name)}`, { method: 'DELETE' });
+  const response = await fetch(apiUrl(`/api/people/${encodeURIComponent(name)}`), { method: 'DELETE' });
   if (!response.ok) throw new Error('Could not delete person');
 }
 
