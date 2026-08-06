@@ -36,7 +36,7 @@
       <button id="tab-expense" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-expense" data-tab="expense">Log expenses</button>
       <button id="tab-payments" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-payments" data-tab="payments">Payments</button>
       <button id="tab-tally" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-tally" data-tab="tally">Receipts</button>
-      <button id="tab-log" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-log" data-tab="log">Log</button>
+      <button id="tab-log" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-log" data-tab="log">All Transactions</button>
     </nav>
 
     <main>
@@ -51,6 +51,7 @@
               <option value="gas">Gas</option>
               <option value="electric">Electric</option>
               <option value="internet">Internet</option>
+              <option value="other">Other</option>
             </select>
           </div>
           <div class="field field-amount">
@@ -70,7 +71,7 @@
           </div>
           <div class="field">
             <label for="exp-date">Date submitted</label>
-            <input type="date" id="exp-date" required>
+            <input type="date" id="exp-date" required readonly>
           </div>
           <fieldset class="field field-split">
             <legend>Split between</legend>
@@ -120,7 +121,7 @@
           </div>
           <div class="field">
             <label for="payment-date">Date Submitted</label>
-            <input type="date" id="payment-date" required>
+            <input type="date" id="payment-date" required readonly>
           </div>
           <button type="submit" class="btn btn-red btn-wide">Record payment</button>
         </form>
@@ -144,9 +145,9 @@
             <p id="log-payment-empty" class="empty-note">No payments recorded yet.</p>
           </section>
           <section class="log-section log-expenses">
-            <h3>Expenses by date</h3>
+            <h3>Utility expenses by date</h3>
             <ol id="log-expense-list" class="log-list"></ol>
-            <p id="log-expense-empty" class="empty-note">No expenses logged yet.</p>
+            <p id="log-expense-empty" class="empty-note">No utility expenses recorded yet.</p>
           </section>
         </div>
       </section>

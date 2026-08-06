@@ -70,9 +70,26 @@ const logExpenseEmpty = document.getElementById('log-expense-empty');
 const tabButtons = [...document.querySelectorAll('[role="tab"]')];
 const tabPanels = [...document.querySelectorAll('[role="tabpanel"]')];
 
-dateInput.valueAsDate = new Date();
-monthInput.value = new Date().toISOString().slice(0, 7);
-paymentDate.valueAsDate = new Date();
+function currentEasternDate() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const year = parts.find((part) => part.type === 'year')?.value || '';
+  const month = parts.find((part) => part.type === 'month')?.value || '';
+  const day = parts.find((part) => part.type === 'day')?.value || '';
+  return `${year}-${month}-${day}`;
+}
+
+function currentEasternMonth() {
+  return currentEasternDate().slice(0, 7);
+}
+
+dateInput.value = currentEasternDate();
+monthInput.value = currentEasternMonth();
+paymentDate.value = currentEasternDate();
 
 function activateTab(tabName) {
   tabButtons.forEach((button) => {
@@ -83,6 +100,10 @@ function activateTab(tabName) {
   tabPanels.forEach((panel) => {
     panel.hidden = panel.id !== `panel-${tabName}`;
   });
+
+  if (tabName === 'payments') {
+    paymentDate.value = currentEasternDate();
+  }
 }
 
 tabButtons.forEach((button, index) => {
@@ -222,7 +243,7 @@ expenseForm.addEventListener('submit', (e) => {
     amount,
     paidBy,
     splitAmong,
-    date: date || new Date().toISOString().slice(0, 10),
+    date: currentEasternDate(),
     month,
   });
   saveState();
@@ -334,10 +355,13 @@ function renderActivityLog() {
     logPaymentList.appendChild(item);
   });
 
-  const expenses = [...state.expenses].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const allExpenses = [...state.expenses].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const utilityExpenses = allExpenses.filter((expense) => ['gas', 'electric', 'internet'].includes(expenseCategory(expense)));
+  const otherExpenses = allExpenses.filter((expense) => expenseCategory(expense) === 'other');
+
   logExpenseList.innerHTML = '';
-  logExpenseEmpty.style.display = expenses.length ? 'none' : 'block';
-  expenses.forEach((expense) => {
+  logExpenseEmpty.style.display = utilityExpenses.length ? 'none' : 'block';
+  utilityExpenses.forEach((expense) => {
     const splitLabel =
       expense.splitAmong.length === state.people.length
         ? 'everyone'
@@ -358,6 +382,7 @@ function renderActivityLog() {
     addHoldToRevealDelete(item);
     logExpenseList.appendChild(item);
   });
+
 }
 
 function addHoldToRevealDelete(row) {
@@ -377,42 +402,15 @@ function addHoldToRevealDelete(row) {
 // =============================================================
 function renderExpenses() {
   expenseListEl.innerHTML = '';
-  expenseEmpty.style.display = state.expenses.length ? 'none' : 'block';
-  return renderReceiptMonths();
-
-  state.expenses.forEach((x) => {
-    const li = document.createElement('li');
-    li.className = 'receipt-row';
-
-    const splitLabel =
-      x.splitAmong.length === state.people.length
-        ? 'everyone'
-        : x.splitAmong.length <= 2
-        ? x.splitAmong.join(' & ')
-        : `${x.splitAmong.length} people`;
-
-    li.innerHTML = `
-      <span class="receipt-desc">${escapeHtml(x.desc)}<span class="receipt-date">${formatDate(x.date)}</span></span>
-      <span class="receipt-payer">${escapeHtml(x.paidBy)}</span>
-      <span class="receipt-split">${escapeHtml(splitLabel)}</span>
-      <span class="receipt-amount">${money(x.amount)}</span>
-    `;
-    const delBtn = document.createElement('button');
-    delBtn.className = 'receipt-del';
-    delBtn.type = 'button';
-    delBtn.setAttribute('aria-label', `Delete ${x.desc}`);
-    delBtn.textContent = '✕';
-    delBtn.addEventListener('click', () => deleteExpense(x.id));
-    li.appendChild(delBtn);
-
-    expenseListEl.appendChild(li);
-  });
+  const utilityExpenses = state.expenses.filter((expense) => ['gas', 'electric', 'internet'].includes(expenseCategory(expense)));
+  expenseEmpty.style.display = utilityExpenses.length ? 'none' : 'block';
+  return renderReceiptMonths(utilityExpenses);
 }
 
-function renderReceiptMonths() {
+function renderReceiptMonths(expenses) {
   const categories = ['gas', 'electric', 'internet'];
   const byMonth = new Map();
-  state.expenses.forEach((expense) => {
+  expenses.forEach((expense) => {
     const month = expense.month || expense.date?.slice(0, 7) || 'unknown';
     if (!byMonth.has(month)) byMonth.set(month, []);
     byMonth.get(month).push(expense);
