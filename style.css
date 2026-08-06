@@ -272,6 +272,13 @@ select {
   line-height: 1.3;
 }
 
+.payment-hint {
+  margin: 0.5rem 0 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
 input[type="date"] {
   padding-right: 0.8rem;
   appearance: textfield;
@@ -461,6 +468,19 @@ input:focus-visible, select:focus-visible, button:focus-visible {
   border: 1.5px solid var(--paper-line);
   border-radius: 5px;
   padding: 1rem;
+  max-height: 24rem;
+  overflow: hidden;
+}
+.log-list {
+  margin: 0;
+  padding-left: 1.5rem;
+  max-height: 19rem;
+  overflow-y: auto;
+}
+@media (min-width: 900px) {
+  .log-sections {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 .log-section h3 {
   margin: 0 0 0.75rem;
@@ -681,6 +701,24 @@ input:focus-visible, select:focus-visible, button:focus-visible {
   padding: 1.1rem 1.2rem;
   position: relative;
   overflow: hidden;
+}
+
+.balance-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.credit-score {
+  background: linear-gradient(135deg, #54575A 0%, #74777A 100%);
+  color: white;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 .balance-name {
   font-family: var(--font-display);

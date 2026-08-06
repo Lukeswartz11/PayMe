@@ -18,7 +18,7 @@
       <div class="cover-inner">
         <p class="eyebrow">Da Crib &middot; Payments</p>
         <h1 class="title">Pay Luke</h1>
-        <p class="subtitle">Every utility bill, tallied to the penny — so nobody has to remember who paid for what.</p>
+        <p class="subtitle">The Easy app to remind each fucker how much they owe me for utilities each month.</p>
         <p id="sync-status" class="sync-status">Syncing with shared ledger…</p>
       </div>
       <div class="cover-stamp" aria-hidden="true">
@@ -113,7 +113,7 @@
       <!-- PAYMENTS -->
       <section id="panel-payments" class="panel payments-panel tab-panel" role="tabpanel" aria-labelledby="tab-payments" hidden>
         <h2 class="panel-title"><span class="panel-num">03</span> Mark a payment</h2>
-        <p class="panel-hint">Record a partial or full payment toward what a roommate owes.</p>
+        <p class="panel-hint">Record a partial or full payment toward what a roommate owes. Choose who is sending money and who is receiving it.</p>
         <form id="payment-form" class="payment-form">
           <div class="field">
             <label for="payment-from">Who paid</label>
@@ -130,6 +130,7 @@
               <input type="number" id="payment-amount" placeholder="0.00" step="0.01" min="0.01" required>
             </div>
           </div>
+          <p id="payment-hint" class="payment-hint">Choose who paid and who was paid, then record the transfer.</p>
           <input type="hidden" id="payment-date">
           <button type="submit" class="btn btn-red btn-wide">Record payment</button>
         </form>
@@ -138,7 +139,7 @@
       <!-- SETTLE UP -->
       <section id="panel-settle" class="panel settle-panel tab-panel" role="tabpanel" aria-labelledby="tab-settle">
         <h2 class="panel-title"><span class="panel-num">04</span> Settle up</h2>
-        <p class="panel-hint">The fewest payments needed to even everything out.</p>
+        <p class="panel-hint">What everyone still needs to pay.</p>
         <ul id="settle-list" class="settle-list"></ul>
         <p id="settle-empty" class="empty-note">Everyone's square. Nicely done.</p>
       </section>

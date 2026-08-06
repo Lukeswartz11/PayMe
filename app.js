@@ -508,11 +508,31 @@ function renderPaymentOptions() {
   populateSelect(paymentTo, creditors, previousTo, 'No one is owed money');
   paymentFrom.disabled = debtors.length === 0;
   paymentTo.disabled = creditors.length === 0;
+  updatePaymentHint(balance);
   updatePaymentLimit();
 }
 
-paymentFrom.addEventListener('change', updatePaymentLimit);
-paymentTo.addEventListener('change', updatePaymentLimit);
+function updatePaymentHint(balance) {
+  const hint = document.getElementById('payment-hint');
+  if (!hint) return;
+  if (!paymentFrom.value || !paymentTo.value) {
+    hint.textContent = 'Choose who paid and who was paid, then record the transfer.';
+    return;
+  }
+
+  const owesFrom = balance[paymentFrom.value] < 0;
+  const owesTo = balance[paymentTo.value] > 0;
+  hint.textContent = `${paymentFrom.value} is paying ${paymentTo.value}. ${paymentFrom.value} currently owes ${money(-balance[paymentFrom.value])} and ${paymentTo.value} is owed ${money(balance[paymentTo.value])}.`;
+}
+
+paymentFrom.addEventListener('change', () => {
+  updatePaymentLimit();
+  updatePaymentHint(computeBalances());
+});
+paymentTo.addEventListener('change', () => {
+  updatePaymentLimit();
+  updatePaymentHint(computeBalances());
+});
 
 paymentForm.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -733,7 +753,55 @@ function computeBalances() {
   return balance;
 }
 
-function renderBalances(balance) {
+function parseDateValue(value) {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function daysBetween(startValue, endValue) {
+  const start = parseDateValue(startValue);
+  const end = parseDateValue(endValue);
+  if (!start || !end) return 0;
+  return Math.max(0, Math.round((end - start) / 86400000));
+}
+
+function computeMostRecentExpenseDate() {
+  const expenseDates = state.expenses
+    .map((expense) => expense.date)
+    .filter(Boolean)
+    .map((date) => parseDateValue(date))
+    .filter(Boolean);
+
+  if (!expenseDates.length) return null;
+  const latest = expenseDates.reduce((latestDate, nextDate) => (nextDate > latestDate ? nextDate : latestDate));
+  return latest.toISOString().slice(0, 10);
+}
+
+function computeCreditScores() {
+  const scores = {};
+  state.people.forEach((name) => {
+    scores[name] = 850;
+  });
+
+  const latestExpenseDate = computeMostRecentExpenseDate();
+  if (!latestExpenseDate) return scores;
+
+  const paymentsToLuke = [...state.settlements]
+    .filter((settlement) => settlement.to === 'Luke' && state.people.includes(settlement.from))
+    .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+  paymentsToLuke.forEach((settlement) => {
+    const payer = settlement.from;
+    const daysLate = daysBetween(latestExpenseDate, settlement.date);
+    const baseScore = Math.max(0, 850 - 50 * daysLate);
+    scores[payer] = (scores[payer] + baseScore) / 2;
+  });
+
+  return scores;
+}
+
+function renderBalances(balance, scores) {
   balancesGrid.innerHTML = '';
   state.people.forEach((name) => {
     const amt = balance[name] || 0;
@@ -748,8 +816,12 @@ function renderBalances(balance) {
       cls = 'owes';
       caption = 'owes the house';
     }
+    const score = Math.round(scores[name] || 850);
     card.innerHTML = `
-      <p class="balance-name">${escapeHtml(name)}</p>
+      <div class="balance-header">
+        <p class="balance-name">${escapeHtml(name)}</p>
+        <span class="credit-score">${score}</span>
+      </div>
       <p class="balance-amount ${cls}">${money(Math.abs(amt) < 0.005 ? 0 : amt)}</p>
       <p class="balance-caption">${caption}</p>
     `;
@@ -815,7 +887,8 @@ function renderAll() {
   renderFormOptions();
   renderExpenses();
   const balance = computeBalances();
-  renderBalances(balance);
+  const creditScores = computeCreditScores();
+  renderBalances(balance, creditScores);
   renderPaymentOptions();
   renderSettlements(computeSettlements(balance));
   renderActivityLog();
