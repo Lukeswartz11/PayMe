@@ -148,14 +148,16 @@
       <section id="panel-log" class="panel log-panel tab-panel" role="tabpanel" aria-labelledby="tab-log" hidden>
         <h2 class="panel-title"><span class="panel-num">06</span> Activity log</h2>
         <div class="log-sections">
-          <section class="log-section log-payments">
+          <section id="log-payments-section" class="log-section log-payments">
             <h3>Payments by date</h3>
             <ol id="log-payment-list" class="log-list"></ol>
+            <button id="log-payment-more" type="button" class="log-more-button" hidden>View more payments</button>
             <p id="log-payment-empty" class="empty-note">No payments recorded yet.</p>
           </section>
-          <section class="log-section log-expenses">
+          <section id="log-expenses-section" class="log-section log-expenses">
             <h3>Utility expenses by date</h3>
             <ol id="log-expense-list" class="log-list"></ol>
+            <button id="log-expense-more" type="button" class="log-more-button" hidden>View more expenses</button>
             <p id="log-expense-empty" class="empty-note">No utility expenses recorded yet.</p>
           </section>
         </div>

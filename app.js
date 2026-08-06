@@ -5,6 +5,7 @@ let state = { people: [], expenses: [], settlements: [] };
 const STORAGE_KEY = 'payme-local-state';
 const API_BASE = 'https://payme-9w80.onrender.com';
 const SYNC_INTERVAL_MS = 4000;
+const LOG_PREVIEW_COUNT = 2;
 const syncStatusEl = document.getElementById('sync-status');
 const APP_VERSION = '20260806-2';
 
@@ -243,8 +244,25 @@ const paymentDate = document.getElementById('payment-date');
 
 const logPaymentList = document.getElementById('log-payment-list');
 const logPaymentEmpty = document.getElementById('log-payment-empty');
+const logPaymentMore = document.getElementById('log-payment-more');
+const logPaymentSection = document.getElementById('log-payments-section');
 const logExpenseList = document.getElementById('log-expense-list');
 const logExpenseEmpty = document.getElementById('log-expense-empty');
+const logExpenseMore = document.getElementById('log-expense-more');
+const logExpenseSection = document.getElementById('log-expenses-section');
+
+let isPaymentLogExpanded = false;
+let isExpenseLogExpanded = false;
+
+logPaymentMore?.addEventListener('click', () => {
+  isPaymentLogExpanded = !isPaymentLogExpanded;
+  renderActivityLog();
+});
+
+logExpenseMore?.addEventListener('click', () => {
+  isExpenseLogExpanded = !isExpenseLogExpanded;
+  renderActivityLog();
+});
 
 const tabButtons = [...document.querySelectorAll('[role="tab"]')];
 const tabPanels = [...document.querySelectorAll('[role="tabpanel"]')];
@@ -580,7 +598,8 @@ function renderActivityLog() {
   const payments = [...state.settlements].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   logPaymentList.innerHTML = '';
   logPaymentEmpty.style.display = payments.length ? 'none' : 'block';
-  payments.forEach((payment) => {
+  const paymentPreview = isPaymentLogExpanded ? payments : payments.slice(0, LOG_PREVIEW_COUNT);
+  paymentPreview.forEach((payment) => {
     const item = document.createElement('li');
     item.className = 'log-row log-payment-row';
     item.innerHTML = `<div class="log-entry-details"><span class="log-date">${formatDate(payment.date)}</span><span>Payment</span><span> ${escapeHtml(payment.from)} to ${escapeHtml(payment.to)}</span></div><span class="log-amount">${money(payment.amount)}</span>`;
@@ -594,14 +613,23 @@ function renderActivityLog() {
     addHoldToRevealDelete(item);
     logPaymentList.appendChild(item);
   });
+  if (payments.length > LOG_PREVIEW_COUNT) {
+    logPaymentMore.hidden = false;
+    logPaymentMore.textContent = isPaymentLogExpanded
+      ? 'Show less'
+      : `View ${payments.length - LOG_PREVIEW_COUNT} more payments`;
+  } else {
+    logPaymentMore.hidden = true;
+  }
+  logPaymentSection?.classList.toggle('expanded', isPaymentLogExpanded);
 
   const allExpenses = [...state.expenses].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   const utilityExpenses = allExpenses.filter((expense) => ['gas', 'electric', 'internet'].includes(expenseCategory(expense)));
-  const otherExpenses = allExpenses.filter((expense) => expenseCategory(expense) === 'other');
 
   logExpenseList.innerHTML = '';
   logExpenseEmpty.style.display = utilityExpenses.length ? 'none' : 'block';
-  utilityExpenses.forEach((expense) => {
+  const expensePreview = isExpenseLogExpanded ? utilityExpenses : utilityExpenses.slice(0, LOG_PREVIEW_COUNT);
+  expensePreview.forEach((expense) => {
     const splitLabel =
       expense.splitAmong.length === state.people.length
         ? 'everyone'
@@ -622,6 +650,15 @@ function renderActivityLog() {
     addHoldToRevealDelete(item);
     logExpenseList.appendChild(item);
   });
+  if (utilityExpenses.length > LOG_PREVIEW_COUNT) {
+    logExpenseMore.hidden = false;
+    logExpenseMore.textContent = isExpenseLogExpanded
+      ? 'Show less'
+      : `View ${utilityExpenses.length - LOG_PREVIEW_COUNT} more expenses`;
+  } else {
+    logExpenseMore.hidden = true;
+  }
+  logExpenseSection?.classList.toggle('expanded', isExpenseLogExpanded);
 
 }
 

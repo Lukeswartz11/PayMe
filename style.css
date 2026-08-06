@@ -470,6 +470,15 @@ input:focus-visible, select:focus-visible, button:focus-visible {
   padding: 1rem;
   max-height: 24rem;
   overflow: hidden;
+  transition: max-height 0.2s ease;
+}
+.log-section.expanded {
+  max-height: none;
+  overflow: visible;
+}
+.log-section.expanded .log-list {
+  max-height: none;
+  overflow: visible;
 }
 .log-list {
   margin: 0;
@@ -506,6 +515,23 @@ input:focus-visible, select:focus-visible, button:focus-visible {
   overflow-wrap: anywhere;
   display: grid;
   gap: 0.15rem;
+}
+.log-more-button {
+  display: block;
+  width: 100%;
+  margin: 0.75rem 0 0;
+  padding: 0.8rem 1rem;
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-align: center;
+}
+.log-more-button:hover {
+  background: #fafafa;
 }
 .log-entry-details span { display: block; }
 .log-entry-row {
