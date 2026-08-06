@@ -1,29 +1,126 @@
 // =============================================================
 // THE LEDGER — state & persistence
 // =============================================================
-const STORAGE_KEY = 'the-ledger-state-v1';
-const HOUSEHOLD = Object.freeze(['Luke', 'Andrew', 'Logan', 'Kai', 'Carson', 'conner']);
+let state = { people: [], expenses: [], settlements: [] };
+const STORAGE_KEY = 'payme-local-state';
 
-/** @type {{people: string[], expenses: Array<{id:string, desc:string, amount:number, paidBy:string, splitAmong:string[], date:string}>, settlements: Array<{id:string, from:string, to:string, amount:number, date:string}>}} */
-let state = loadState();
+const DEFAULT_STATE = {
+  people: ['Luke', 'Andrew', 'Logan', 'Kai', 'Carson', 'conner'],
+  expenses: [],
+  settlements: [],
+};
 
-function loadState() {
+function loadLocalState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.warn('Could not read saved ledger, starting fresh.', e);
+    return raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    console.warn('Could not parse local state.', error);
+    return null;
   }
-  return { people: [], expenses: [], settlements: [] };
 }
 
-function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+function saveLocalState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.warn('Could not save local state.', error);
+  }
 }
 
-// The household is deliberately fixed in the source code.
-state.people = [...HOUSEHOLD];
-saveState();
+async function loadState() {
+  const localState = loadLocalState();
+  try {
+    const response = await fetch('/api/state');
+    if (!response.ok) throw new Error('Failed to load state');
+    const data = await response.json();
+    const loaded = {
+      people: Array.isArray(data.people) ? data.people : DEFAULT_STATE.people,
+      expenses: Array.isArray(data.expenses) ? data.expenses : DEFAULT_STATE.expenses,
+      settlements: Array.isArray(data.settlements) ? data.settlements : DEFAULT_STATE.settlements,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(loaded));
+    return loaded;
+  } catch (e) {
+    console.warn('Could not load shared ledger state, using local fallback.', e);
+    return localState || { ...DEFAULT_STATE };
+  }
+}
+
+async function initState() {
+  state = await loadState();
+  renderAll();
+}
+
+async function createExpense(expense) {
+  try {
+    const response = await fetch('/api/expenses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(expense),
+    });
+    if (!response.ok) throw new Error('Could not create expense');
+    return await response.json();
+  } catch (error) {
+    console.warn('Expense backend unavailable, falling back to local state.', error);
+    return expense;
+  }
+}
+
+async function createSettlement(settlement) {
+  try {
+    const response = await fetch('/api/settlements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settlement),
+    });
+    if (!response.ok) throw new Error('Could not create payment');
+    return await response.json();
+  } catch (error) {
+    console.warn('Payment backend unavailable, falling back to local state.', error);
+    return settlement;
+  }
+}
+
+async function createPerson(name) {
+  try {
+    const response = await fetch('/api/people', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    if (!response.ok) throw new Error('Could not create person');
+    return await response.json();
+  } catch (error) {
+    console.warn('Person backend unavailable, falling back to local state.', error);
+    return { name };
+  }
+}
+
+async function deleteExpenseById(id) {
+  try {
+    const response = await fetch(`/api/expenses/${id}`, { method: 'DELETE' });
+    if (!response.ok) throw new Error('Could not delete expense');
+  } catch (error) {
+    console.warn('Expense delete backend unavailable, removing locally.', error);
+    saveLocalState();
+  }
+}
+
+async function deleteSettlementById(id) {
+  try {
+    const response = await fetch(`/api/settlements/${id}`, { method: 'DELETE' });
+    if (!response.ok) throw new Error('Could not delete payment');
+  } catch (error) {
+    console.warn('Payment delete backend unavailable, removing locally.', error);
+    saveLocalState();
+  }
+}
+
+async function deletePersonByName(name) {
+  const response = await fetch(`/api/people/${encodeURIComponent(name)}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error('Could not delete person');
+}
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
@@ -124,7 +221,7 @@ tabButtons.forEach((button, index) => {
 // =============================================================
 // ROOMMATES
 // =============================================================
-roommateForm?.addEventListener('submit', (e) => {
+roommateForm?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const name = roommateInput.value.trim();
   if (!name) return;
@@ -132,13 +229,20 @@ roommateForm?.addEventListener('submit', (e) => {
     roommateInput.value = '';
     return;
   }
-  state.people.push(name);
-  saveState();
-  roommateInput.value = '';
-  renderAll();
+
+  try {
+    await createPerson(name);
+    state.people.push(name);
+    saveLocalState();
+    roommateInput.value = '';
+    renderAll();
+  } catch (error) {
+    console.error(error);
+    alert('Could not save roommate. Please try again.');
+  }
 });
 
-function removeRoommate(name) {
+async function removeRoommate(name) {
   const involved = state.expenses.some(
     (x) => x.paidBy === name || x.splitAmong.includes(name)
   );
@@ -148,9 +252,15 @@ function removeRoommate(name) {
     );
     if (!ok) return;
   }
-  state.people = state.people.filter((p) => p !== name);
-  saveState();
-  renderAll();
+
+  try {
+    await deletePersonByName(name);
+    state.people = state.people.filter((p) => p !== name);
+    renderAll();
+  } catch (error) {
+    console.error(error);
+    alert('Could not remove roommate. Please try again.');
+  }
 }
 
 function renderRoommates() {
@@ -219,12 +329,11 @@ function renderFormOptions() {
   });
 }
 
-expenseForm.addEventListener('submit', (e) => {
+expenseForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const category = categoryInput.value;
   const amount = parseFloat(amountInput.value);
   const paidBy = payerSelect.value;
-  const date = dateInput.value;
   const month = monthInput.value;
   const splitAmong = [...splitCheckboxes.querySelectorAll('input:checked')].map(
     (i) => i.value
@@ -237,7 +346,7 @@ expenseForm.addEventListener('submit', (e) => {
   }
 
   const year = currentEasternDate().slice(0, 4);
-  state.expenses.unshift({
+  const expense = {
     id: uid(),
     desc: categoryLabel(category),
     category,
@@ -246,18 +355,30 @@ expenseForm.addEventListener('submit', (e) => {
     splitAmong,
     date: currentEasternDate(),
     month: `${year}-${month}`,
-  });
-  saveState();
+  };
 
-  amountInput.value = '';
-  expenseForm.reportValidity && amountInput.focus();
-  renderAll();
+  try {
+    await createExpense(expense);
+    state.expenses.unshift(expense);
+    saveLocalState();
+    amountInput.value = '';
+    expenseForm.reportValidity && amountInput.focus();
+    renderAll();
+  } catch (error) {
+    console.error(error);
+    alert('Could not save expense. Please try again.');
+  }
 });
 
-function deleteExpense(id) {
-  state.expenses = state.expenses.filter((x) => x.id !== id);
-  saveState();
-  renderAll();
+async function deleteExpense(id) {
+  try {
+    await deleteExpenseById(id);
+    state.expenses = state.expenses.filter((x) => x.id !== id);
+    renderAll();
+  } catch (error) {
+    console.error(error);
+    alert('Could not delete expense. Please try again.');
+  }
 }
 
 // =============================================================
@@ -309,7 +430,7 @@ function renderPaymentOptions() {
 paymentFrom.addEventListener('change', updatePaymentLimit);
 paymentTo.addEventListener('change', updatePaymentLimit);
 
-paymentForm.addEventListener('submit', (event) => {
+paymentForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const amount = parseFloat(paymentAmount.value);
   const limit = paymentLimit();
@@ -319,22 +440,35 @@ paymentForm.addEventListener('submit', (event) => {
     return;
   }
 
-  state.settlements.unshift({
+  const settlement = {
     id: uid(),
     from: paymentFrom.value,
     to: paymentTo.value,
     amount,
     date: paymentDate.value || new Date().toISOString().slice(0, 10),
-  });
-  saveState();
-  paymentAmount.value = '';
-  renderAll();
+  };
+
+  try {
+    await createSettlement(settlement);
+    state.settlements.unshift(settlement);
+    saveLocalState();
+    paymentAmount.value = '';
+    renderAll();
+  } catch (error) {
+    console.error(error);
+    alert('Could not save payment. Please try again.');
+  }
 });
 
-function deletePayment(id) {
-  state.settlements = state.settlements.filter((payment) => payment.id !== id);
-  saveState();
-  renderAll();
+async function deletePayment(id) {
+  try {
+    await deleteSettlementById(id);
+    state.settlements = state.settlements.filter((payment) => payment.id !== id);
+    renderAll();
+  } catch (error) {
+    console.error(error);
+    alert('Could not delete payment. Please try again.');
+  }
 }
 
 function renderActivityLog() {
@@ -602,4 +736,4 @@ function renderAll() {
   renderActivityLog();
 }
 
-renderAll();
+initState();
