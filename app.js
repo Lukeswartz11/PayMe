@@ -6,6 +6,7 @@ const STORAGE_KEY = 'payme-local-state';
 const API_BASE = 'https://payme-9w80.onrender.com';
 const SYNC_INTERVAL_MS = 4000;
 const syncStatusEl = document.getElementById('sync-status');
+const APP_VERSION = '20260806-2';
 
 const DEFAULT_STATE = {
   people: ['Luke', 'Andrew', 'Logan', 'Kai', 'Carson', 'conner'],
@@ -15,7 +16,7 @@ const DEFAULT_STATE = {
 
 function loadLocalState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(getStorageKey());
     return raw ? JSON.parse(raw) : null;
   } catch (error) {
     console.warn('Could not parse local state.', error);
@@ -25,10 +26,14 @@ function loadLocalState() {
 
 function saveLocalState() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(getStorageKey(), JSON.stringify(state));
   } catch (error) {
     console.warn('Could not save local state.', error);
   }
+}
+
+function getStorageKey() {
+  return `${STORAGE_KEY}-${APP_VERSION}`;
 }
 
 function apiUrl(path) {
@@ -46,7 +51,7 @@ async function loadState() {
       expenses: Array.isArray(data.expenses) ? data.expenses : DEFAULT_STATE.expenses,
       settlements: Array.isArray(data.settlements) ? data.settlements : DEFAULT_STATE.settlements,
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(loaded));
+    localStorage.setItem(getStorageKey(), JSON.stringify(loaded));
     return loaded;
   } catch (e) {
     console.warn('Could not load shared ledger state, using local fallback.', e);
