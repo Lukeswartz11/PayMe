@@ -4,6 +4,7 @@
 let state = { people: [], expenses: [], settlements: [] };
 const STORAGE_KEY = 'payme-local-state';
 const API_BASE = 'https://payme-9w80.onrender.com';
+const SYNC_INTERVAL_MS = 4000;
 
 const DEFAULT_STATE = {
   people: ['Luke', 'Andrew', 'Logan', 'Kai', 'Carson', 'conner'],
@@ -52,9 +53,67 @@ async function loadState() {
   }
 }
 
+let syncTimer = null;
+let lastSyncSignature = '';
+
+function normalizeState(data) {
+  return {
+    people: Array.isArray(data?.people) ? data.people : DEFAULT_STATE.people,
+    expenses: Array.isArray(data?.expenses) ? data.expenses : DEFAULT_STATE.expenses,
+    settlements: Array.isArray(data?.settlements) ? data.settlements : DEFAULT_STATE.settlements,
+  };
+}
+
+function getStateSignature(nextState) {
+  return JSON.stringify({
+    people: nextState.people,
+    expenses: nextState.expenses,
+    settlements: nextState.settlements,
+  });
+}
+
+async function syncStateFromServer() {
+  try {
+    const response = await fetch(apiUrl('/api/state'));
+    if (!response.ok) throw new Error('Could not refresh state');
+    const data = await response.json();
+    const nextState = normalizeState(data);
+    const nextSignature = getStateSignature(nextState);
+
+    if (nextSignature !== lastSyncSignature) {
+      state = nextState;
+      lastSyncSignature = nextSignature;
+      saveLocalState();
+      renderAll();
+    }
+  } catch (error) {
+    console.warn('Background sync failed, keeping the current view.', error);
+  }
+}
+
+function startLiveSync() {
+  if (syncTimer) clearInterval(syncTimer);
+  syncTimer = setInterval(() => {
+    syncStateFromServer();
+  }, SYNC_INTERVAL_MS);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      syncStateFromServer();
+    }
+  });
+
+  window.addEventListener('focus', () => {
+    syncStateFromServer();
+  });
+}
+
 async function initState() {
-  state = await loadState();
+  const loaded = await loadState();
+  state = loaded;
+  lastSyncSignature = getStateSignature(state);
   renderAll();
+  startLiveSync();
 }
 
 async function createExpense(expense) {
@@ -261,6 +320,7 @@ async function removeRoommate(name) {
   try {
     await deletePersonByName(name);
     state.people = state.people.filter((p) => p !== name);
+    saveLocalState();
     renderAll();
   } catch (error) {
     console.error(error);
@@ -379,6 +439,7 @@ async function deleteExpense(id) {
   try {
     await deleteExpenseById(id);
     state.expenses = state.expenses.filter((x) => x.id !== id);
+    saveLocalState();
     renderAll();
   } catch (error) {
     console.error(error);
@@ -469,6 +530,7 @@ async function deletePayment(id) {
   try {
     await deleteSettlementById(id);
     state.settlements = state.settlements.filter((payment) => payment.id !== id);
+    saveLocalState();
     renderAll();
   } catch (error) {
     console.error(error);

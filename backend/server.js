@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -8,22 +9,37 @@ const app = express();
 const port = process.env.PORT || 3000;
 const dataPath = path.resolve(__dirname, 'data.json');
 const publicRoot = path.resolve(__dirname, '..');
+const firebaseDbUrl = process.env.FIREBASE_DATABASE_URL?.replace(/\/$/, '');
 
+const defaultData = {
+  people: ['Luke', 'Andrew', 'Logan', 'Kai', 'Carson', 'conner'],
+  expenses: [],
+  settlements: [],
+};
+
+app.use(cors());
 app.use(express.json());
 app.use(express.static(publicRoot));
 
 async function readData() {
+  if (firebaseDbUrl) {
+    try {
+      const response = await fetch(`${firebaseDbUrl}/state.json`);
+      if (!response.ok) throw new Error(`Firebase read failed: ${response.status}`);
+      const value = await response.text();
+      if (!value || value === 'null') return defaultData;
+      return JSON.parse(value);
+    } catch (error) {
+      console.error('Failed to read Firebase data:', error);
+    }
+  }
+
   try {
     const raw = await fs.readFile(dataPath, 'utf-8');
     return JSON.parse(raw);
   } catch (error) {
     console.error('Failed to read data.json:', error);
     if (error.code === 'ENOENT' || error.name === 'SyntaxError') {
-      const defaultData = {
-        people: ['Luke', 'Andrew', 'Logan', 'Kai', 'Carson', 'conner'],
-        expenses: [],
-        settlements: [],
-      };
       await writeData(defaultData);
       return defaultData;
     }
@@ -32,6 +48,16 @@ async function readData() {
 }
 
 async function writeData(data) {
+  if (firebaseDbUrl) {
+    const response = await fetch(`${firebaseDbUrl}/state.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error(`Firebase write failed: ${response.status}`);
+    return;
+  }
+
   await fs.writeFile(dataPath, JSON.stringify(data, null, 2));
 }
 
