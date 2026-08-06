@@ -5,6 +5,7 @@ let state = { people: [], expenses: [], settlements: [] };
 const STORAGE_KEY = 'payme-local-state';
 const API_BASE = 'https://payme-9w80.onrender.com';
 const SYNC_INTERVAL_MS = 4000;
+const syncStatusEl = document.getElementById('sync-status');
 
 const DEFAULT_STATE = {
   people: ['Luke', 'Andrew', 'Logan', 'Kai', 'Carson', 'conner'],
@@ -86,13 +87,25 @@ async function syncStateFromServer() {
       saveLocalState();
       renderAll();
     }
+
+    updateSyncStatus('Live sync active');
   } catch (error) {
     console.warn('Background sync failed, keeping the current view.', error);
+    updateSyncStatus('Sync offline — using local view', true);
   }
+}
+
+function updateSyncStatus(message, isError = false) {
+  if (!syncStatusEl) return;
+  syncStatusEl.textContent = message;
+  syncStatusEl.style.color = isError ? '#8C0000' : 'var(--stamp-red-ink)';
 }
 
 function startLiveSync() {
   if (syncTimer) clearInterval(syncTimer);
+
+  updateSyncStatus('Syncing with shared ledger…');
+
   syncTimer = setInterval(() => {
     syncStateFromServer();
   }, SYNC_INTERVAL_MS);

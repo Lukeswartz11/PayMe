@@ -147,6 +147,15 @@ body :where(h1, h2, h3, p, span, label, legend, li, button, input, select) {
   margin: 0;
 }
 
+.sync-status {
+  margin: 0.7rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--stamp-red-ink);
+}
+
 .cover-stamp {
   position: relative;
   flex: none;
@@ -265,6 +274,7 @@ select {
 
 input[type="date"] {
   padding-right: 0.8rem;
+  appearance: textfield;
   -webkit-appearance: textfield;
 }
 
