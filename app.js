@@ -251,6 +251,11 @@ const logExpenseEmpty = document.getElementById('log-expense-empty');
 const logExpenseMore = document.getElementById('log-expense-more');
 const logExpenseSection = document.getElementById('log-expenses-section');
 
+const loginScreen = document.getElementById('login-screen');
+const loginPassword = document.getElementById('login-password');
+const loginSubmit = document.getElementById('login-submit');
+const loginError = document.getElementById('login-error');
+
 let isPaymentLogExpanded = false;
 let isExpenseLogExpanded = false;
 
@@ -931,4 +936,37 @@ function renderAll() {
   renderActivityLog();
 }
 
-initState();
+function showLoginError(message) {
+  if (!loginError) return;
+  loginError.textContent = message;
+}
+
+function unlockApp() {
+  if (loginScreen) {
+    loginScreen.style.display = 'none';
+  }
+  initState();
+}
+
+function handleLogin() {
+  const password = loginPassword?.value || '';
+  if (password === 'Lukeishot69') {
+    showLoginError('');
+    unlockApp();
+    return;
+  }
+  showLoginError('Wrong password. Try again.');
+  loginPassword?.focus();
+}
+
+loginSubmit?.addEventListener('click', handleLogin);
+loginPassword?.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    handleLogin();
+  }
+});
+
+if (loginPassword) {
+  loginPassword.focus();
+}
