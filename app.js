@@ -971,8 +971,11 @@ function updateNotificationButton() {
   const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
   notificationButton.hidden = !currentUser || !supported;
   if (!supported || !currentUser) return;
+  const enabled = Notification.permission === 'granted';
   notificationButton.disabled = Notification.permission === 'denied';
-  notificationButton.textContent = Notification.permission === 'granted' ? 'Phone alerts enabled' : 'Enable phone alerts';
+  notificationButton.classList.toggle('is-enabled', enabled);
+  notificationButton.textContent = enabled ? 'Alerts on' : 'Enable alerts';
+  notificationButton.setAttribute('aria-label', enabled ? 'Phone alerts are enabled' : 'Enable phone alerts');
 }
 
 async function enablePhoneAlerts() {
