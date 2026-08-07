@@ -428,21 +428,21 @@ function renderRoommates() {
 // =============================================================
 function renderFormOptions() {
   const prevPayer = payerSelect.value;
+  const isDeveloper = currentUser?.isDeveloper;
   payerSelect.innerHTML = '';
   if (state.people.length === 0) {
     payerSelect.innerHTML = '<option value="">Add roommates first</option>';
     payerSelect.disabled = true;
   } else {
-    const canLog = state.people.includes('Luke');
-    const payers = canLog ? ['Luke'] : state.people;
+    const payers = isDeveloper ? state.people : state.people.filter((name) => name === currentUser?.name);
     payers.forEach((name) => {
       const opt = document.createElement('option');
       opt.value = name;
       opt.textContent = name;
       payerSelect.appendChild(opt);
     });
-    if (canLog) {
-      payerSelect.value = 'Luke';
+    if (!isDeveloper) {
+      payerSelect.value = currentUser?.name || '';
       payerSelect.disabled = true;
     } else if (state.people.includes(prevPayer)) {
       payerSelect.value = prevPayer;
@@ -471,6 +471,7 @@ function renderFormOptions() {
   expenseForm.querySelectorAll('input, select, button').forEach((el) => {
     el.disabled = disabled;
   });
+  payerSelect.disabled = disabled || !isDeveloper;
 }
 
 expenseForm.addEventListener('submit', async (e) => {
@@ -502,8 +503,8 @@ expenseForm.addEventListener('submit', async (e) => {
   };
 
   try {
-    await createExpense(expense);
-    state.expenses.unshift(expense);
+    const savedExpense = await createExpense(expense);
+    state.expenses.unshift(savedExpense);
     saveLocalState();
     amountInput.value = '';
     expenseForm.reportValidity && amountInput.focus();
@@ -560,14 +561,14 @@ function updatePaymentLimit() {
 
 function renderPaymentOptions() {
   const balance = computeBalances();
-  const debtors = state.people.filter((name) => (balance[name] || 0) < -0.005);
+  const debtors = state.people.filter((name) => (balance[name] || 0) < -0.005 && (currentUser?.isDeveloper || name === currentUser?.name));
   const creditors = state.people.filter((name) => (balance[name] || 0) > 0.005);
   const previousFrom = paymentFrom.value;
   const previousTo = paymentTo.value;
 
   populateSelect(paymentFrom, debtors, previousFrom, 'No one owes money');
   populateSelect(paymentTo, creditors, previousTo, 'No one is owed money');
-  paymentFrom.disabled = debtors.length === 0;
+  paymentFrom.disabled = debtors.length === 0 || !currentUser?.isDeveloper;
   paymentTo.disabled = creditors.length === 0;
   updatePaymentLimit();
 }
@@ -598,8 +599,8 @@ paymentForm.addEventListener('submit', async (event) => {
   };
 
   try {
-    await createSettlement(settlement);
-    state.settlements.unshift(settlement);
+    const savedSettlement = await createSettlement(settlement);
+    state.settlements.unshift(savedSettlement);
     saveLocalState();
     paymentAmount.value = '';
     renderAll();
@@ -630,14 +631,16 @@ function renderActivityLog() {
     const item = document.createElement('li');
     item.className = 'log-row log-payment-row';
     item.innerHTML = `<div class="log-entry-details"><span class="log-date">${formatDate(payment.date)}</span><span>Payment</span><span> ${escapeHtml(payment.from)} to ${escapeHtml(payment.to)}</span></div><span class="log-amount">${money(payment.amount)}</span>`;
-    const deleteButton = document.createElement('button');
-    deleteButton.type = 'button';
-    deleteButton.className = 'log-delete-button';
-    deleteButton.textContent = 'Delete';
-    deleteButton.setAttribute('aria-label', `Delete payment from ${formatDate(payment.date)}`);
-    deleteButton.addEventListener('click', () => deletePayment(payment.id));
-    item.appendChild(deleteButton);
-    addHoldToRevealDelete(item);
+    if (currentUser?.isDeveloper || payment.createdBy === currentUser?.id) {
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.className = 'log-delete-button';
+      deleteButton.textContent = 'Delete';
+      deleteButton.setAttribute('aria-label', `Delete payment from ${formatDate(payment.date)}`);
+      deleteButton.addEventListener('click', () => deletePayment(payment.id));
+      item.appendChild(deleteButton);
+      addHoldToRevealDelete(item);
+    }
     logPaymentList.appendChild(item);
   });
   if (payments.length > LOG_PREVIEW_COUNT) {
@@ -667,14 +670,16 @@ function renderActivityLog() {
     const item = document.createElement('li');
     item.className = 'log-row log-expense-row';
     item.innerHTML = `<div class="log-entry-details"><span class="log-date">${formatDate(expense.date)}</span><div class="log-entry-row"><span class="log-entry-main">${escapeHtml(expense.paidBy)}</span><span class="log-entry-split">→ ${escapeHtml(splitLabel)}</span></div><span>${categoryLabel(expenseCategory(expense))}</span></div><span class="log-amount">${money(expense.amount)}</span>`;
-    const deleteButton = document.createElement('button');
-    deleteButton.type = 'button';
-    deleteButton.className = 'log-delete-button';
-    deleteButton.textContent = 'Delete';
-    deleteButton.setAttribute('aria-label', `Delete ${expenseCategory(expense)} expense from ${formatDate(expense.date)}`);
-    deleteButton.addEventListener('click', () => deleteExpense(expense.id));
-    item.appendChild(deleteButton);
-    addHoldToRevealDelete(item);
+    if (currentUser?.isDeveloper || expense.createdBy === currentUser?.id) {
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.className = 'log-delete-button';
+      deleteButton.textContent = 'Delete';
+      deleteButton.setAttribute('aria-label', `Delete ${expenseCategory(expense)} expense from ${formatDate(expense.date)}`);
+      deleteButton.addEventListener('click', () => deleteExpense(expense.id));
+      item.appendChild(deleteButton);
+      addHoldToRevealDelete(item);
+    }
     logExpenseList.appendChild(item);
   });
   if (utilityExpenses.length > LOG_PREVIEW_COUNT) {

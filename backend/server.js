@@ -187,7 +187,7 @@ app.post('/api/auth/signup', async (req, res) => {
     if (!data.people.some((person) => person.toLowerCase() === name.toLowerCase())) data.people.push(name);
     await writeData(data);
     const sessionToken = createSession(user, res);
-    res.status(201).json({ user: { name: user.name, isDeveloper: false }, sessionToken });
+    res.status(201).json({ user: { id: user.id, name: user.name, isDeveloper: false }, sessionToken });
   } catch (error) {
     console.error('POST /api/auth/signup error:', error);
     res.status(500).json({ error: 'Could not create account.' });
@@ -202,7 +202,7 @@ app.post('/api/auth/signin', async (req, res) => {
     const user = data.users.find((candidate) => getUserLoginName(candidate) === name.toLowerCase());
     if (!user || !validPassword(password, user)) return res.status(401).json({ error: 'Incorrect first name or password.' });
     const sessionToken = createSession(user, res);
-    res.json({ user: { name: user.name || '', isDeveloper: Boolean(user.isDeveloper) }, sessionToken });
+    res.json({ user: { id: user.id, name: user.name || '', isDeveloper: Boolean(user.isDeveloper) }, sessionToken });
   } catch (error) {
     console.error('POST /api/auth/signin error:', error);
     res.status(500).json({ error: 'Could not sign in.' });
@@ -213,7 +213,7 @@ app.get('/api/auth/me', requireAuth, async (req, res) => {
   const data = await readPreparedData();
   const user = data.users.find((candidate) => candidate.id === req.userId);
   if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
-  res.json({ user: { name: user.name || '', isDeveloper: Boolean(user.isDeveloper) } });
+  res.json({ user: { id: user.id, name: user.name || '', isDeveloper: Boolean(user.isDeveloper) } });
 });
 
 app.get('/api/developer/accounts', requireAuth, requireDeveloper, async (req, res) => {
@@ -297,10 +297,14 @@ app.get('/api/state', requireAuth, async (req, res) => {
 app.post('/api/expenses', requireAuth, async (req, res) => {
   try {
     const data = await readData();
-    const expense = req.body;
+    const user = data.users.find((candidate) => candidate.id === req.userId);
+    const expense = { ...req.body };
     if (!expense || !expense.id) {
       return res.status(400).json({ error: 'Invalid expense.' });
     }
+    if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
+    if (!user.isDeveloper) expense.paidBy = user.name;
+    expense.createdBy = user.id;
     data.expenses.unshift(expense);
     await writeData(data);
     res.status(201).json(expense);
@@ -312,10 +316,14 @@ app.post('/api/expenses', requireAuth, async (req, res) => {
 app.post('/api/settlements', requireAuth, async (req, res) => {
   try {
     const data = await readData();
-    const payment = req.body;
+    const user = data.users.find((candidate) => candidate.id === req.userId);
+    const payment = { ...req.body };
     if (!payment || !payment.id) {
       return res.status(400).json({ error: 'Invalid payment.' });
     }
+    if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
+    if (!user.isDeveloper) payment.from = user.name;
+    payment.createdBy = user.id;
     data.settlements.unshift(payment);
     await writeData(data);
     res.status(201).json(payment);
@@ -343,6 +351,11 @@ app.delete('/api/expenses/:id', requireAuth, async (req, res) => {
   try {
     const data = await readData();
     const { id } = req.params;
+    const user = data.users.find((candidate) => candidate.id === req.userId);
+    const expense = data.expenses.find((candidate) => candidate.id === id);
+    if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
+    if (!expense) return res.status(404).json({ error: 'Expense not found.' });
+    if (!user.isDeveloper && expense.createdBy !== user.id) return res.status(403).json({ error: 'You can only delete expenses you created.' });
     data.expenses = data.expenses.filter((expense) => expense.id !== id);
     await writeData(data);
     res.status(204).end();
@@ -355,6 +368,11 @@ app.delete('/api/settlements/:id', requireAuth, async (req, res) => {
   try {
     const data = await readData();
     const { id } = req.params;
+    const user = data.users.find((candidate) => candidate.id === req.userId);
+    const settlement = data.settlements.find((candidate) => candidate.id === id);
+    if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
+    if (!settlement) return res.status(404).json({ error: 'Payment not found.' });
+    if (!user.isDeveloper && settlement.createdBy !== user.id) return res.status(403).json({ error: 'You can only delete payments you created.' });
     data.settlements = data.settlements.filter((settlement) => settlement.id !== id);
     await writeData(data);
     res.status(204).end();
