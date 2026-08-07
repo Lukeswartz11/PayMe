@@ -45,7 +45,6 @@
         </div>
         <p class="subtitle">The Easy app to remind each fucker how much they owe me for utilities each month.</p>
         <p id="sync-status" class="sync-status">Syncing with shared ledger…</p>
-        <button id="logout-button" type="button" class="logout-button">Sign out</button>
       </div>
       <div class="cover-stamp" aria-hidden="true">
         <svg viewBox="0 0 120 120" class="stamp-ring">
@@ -58,19 +57,34 @@
     </header>
 
     <nav class="tab-list" aria-label="Ledger sections" role="tablist">
-      <button id="tab-settle" class="tab-button" type="button" role="tab" aria-selected="true" aria-controls="panel-settle" data-tab="settle">Settle up</button>
-      <button id="tab-balances" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-balances" data-tab="balances">Balances</button>
-      <button id="tab-expense" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-expense" data-tab="expense">Log expenses</button>
-      <button id="tab-payments" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-payments" data-tab="payments">Payments</button>
+      <button id="tab-balance" class="tab-button" type="button" role="tab" aria-selected="true" aria-controls="panel-balance" data-tab="balance">Balance</button>
+      <button id="tab-log" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-log" data-tab="log">Log</button>
       <button id="tab-tally" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-tally" data-tab="tally">Receipts</button>
-      <button id="tab-log" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-log" data-tab="log">All Transactions</button>
     </nav>
 
     <main>
 
+      <section id="panel-balance" class="panel grouped-panel tab-panel" role="tabpanel" aria-labelledby="tab-balance">
+        <h2 class="panel-title"><span class="panel-num">01</span> Balance</h2>
+        <div class="section-tabs" role="tablist" aria-label="Balance views">
+          <button id="balance-tab-settle" class="section-tab-button" type="button" role="tab" aria-selected="true" aria-controls="panel-settle" data-balance-tab="settle">Settle up</button>
+          <button id="balance-tab-balances" class="section-tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-balances" data-balance-tab="balances">Balances</button>
+        </div>
+        <div id="balance-panel-content"></div>
+      </section>
+
+      <section id="panel-log" class="panel grouped-panel tab-panel" role="tabpanel" aria-labelledby="tab-log" hidden>
+        <h2 class="panel-title"><span class="panel-num">02</span> Log</h2>
+        <div class="section-tabs" role="tablist" aria-label="Log views">
+          <button id="log-tab-expense" class="section-tab-button" type="button" role="tab" aria-selected="true" aria-controls="panel-expense" data-log-tab="expense">Log expenses</button>
+          <button id="log-tab-payments" class="section-tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-payments" data-log-tab="payments">Log payments</button>
+        </div>
+        <div id="log-panel-content"></div>
+      </section>
+
       <!-- ADD EXPENSE -->
-      <section id="panel-expense" class="panel expense-form-panel tab-panel" role="tabpanel" aria-labelledby="tab-expense" hidden>
-        <h2 class="panel-title"><span class="panel-num">02</span> Log an expense</h2>
+      <section id="panel-expense" class="group-subpanel expense-form-panel" role="tabpanel" aria-labelledby="log-tab-expense">
+        <h3 class="receipt-subtitle">Log an expense</h3>
         <form id="expense-form" class="expense-form">
           <div class="field">
             <label for="exp-category">Category</label>
@@ -80,6 +94,10 @@
               <option value="internet">Internet</option>
               <option value="other">Other</option>
             </select>
+          </div>
+          <div id="exp-description-field" class="field field-other-description" hidden>
+            <label for="exp-description">One word description</label>
+            <input id="exp-description" type="text" maxlength="24" pattern="[^\s]+" title="Enter one word without spaces" placeholder="Groceries" disabled>
           </div>
           <div class="field field-amount">
             <label for="exp-amount">Amount</label>
@@ -121,25 +139,36 @@
       <!-- EXPENSE LIST -->
       <section id="panel-tally" class="panel receipt-panel tab-panel" role="tabpanel" aria-labelledby="tab-tally" hidden>
         <h2 class="panel-title"><span class="panel-num">05</span> Receipts</h2>
-        <p class="panel-hint">Monthly utility spending, organized by category.</p>
-        <div class="receipt">
-          <div class="receipt-edge" aria-hidden="true"></div>
-          <ul id="expense-list" class="receipt-body"></ul>
-          <p id="expense-empty" class="empty-note">No expenses logged yet. The first one's always the hardest.</p>
-          <div class="receipt-edge receipt-edge-bottom" aria-hidden="true"></div>
+        <div class="receipt-tabs" role="tablist" aria-label="Receipt views">
+          <button id="receipt-tab-totals" class="receipt-tab-button" type="button" role="tab" aria-selected="true" aria-controls="receipt-panel-totals" data-receipt-tab="totals">Total utilities</button>
+          <button id="receipt-tab-utilities" class="receipt-tab-button" type="button" role="tab" aria-selected="false" aria-controls="receipt-panel-utilities" data-receipt-tab="utilities">Utilities log</button>
+          <button id="receipt-tab-other" class="receipt-tab-button" type="button" role="tab" aria-selected="false" aria-controls="receipt-panel-other" data-receipt-tab="other">Other log</button>
+          <button id="receipt-tab-payments" class="receipt-tab-button" type="button" role="tab" aria-selected="false" aria-controls="receipt-panel-payments" data-receipt-tab="payments">Payments</button>
         </div>
+        <section id="receipt-panel-totals" class="receipt-subpanel" role="tabpanel" aria-labelledby="receipt-tab-totals">
+          <p class="panel-hint">Monthly utility spending, organized by category.</p>
+          <div class="receipt"><div class="receipt-edge" aria-hidden="true"></div><ul id="expense-list" class="receipt-body"></ul><p id="expense-empty" class="empty-note">No utility expenses logged yet.</p><div class="receipt-edge receipt-edge-bottom" aria-hidden="true"></div></div>
+        </section>
+        <section id="receipt-panel-utilities" class="receipt-subpanel" role="tabpanel" aria-labelledby="receipt-tab-utilities" hidden>
+          <h3 class="receipt-subtitle">Utility expenses by date</h3><ol id="log-expense-list" class="log-list"></ol><button id="log-expense-more" type="button" class="log-more-button" hidden>View more expenses</button><p id="log-expense-empty" class="empty-note">No utility expenses recorded yet.</p>
+        </section>
+        <section id="receipt-panel-other" class="receipt-subpanel" role="tabpanel" aria-labelledby="receipt-tab-other" hidden>
+          <h3 class="receipt-subtitle">Other expenses by date</h3><ol id="log-other-list" class="log-list"></ol><button id="log-other-more" type="button" class="log-more-button" hidden>View more expenses</button><p id="log-other-empty" class="empty-note">No other expenses recorded yet.</p>
+        </section>
+        <section id="receipt-panel-payments" class="receipt-subpanel" role="tabpanel" aria-labelledby="receipt-tab-payments" hidden>
+          <h3 class="receipt-subtitle">Payments by date</h3><ol id="log-payment-list" class="log-list"></ol><button id="log-payment-more" type="button" class="log-more-button" hidden>View more payments</button><p id="log-payment-empty" class="empty-note">No payments recorded yet.</p>
+        </section>
       </section>
 
       <!-- BALANCES -->
-      <section id="panel-balances" class="panel balances-panel tab-panel" role="tabpanel" aria-labelledby="tab-balances" hidden>
-        <h2 class="panel-title"><span class="panel-num">01</span> Who stands where</h2>
+      <section id="panel-balances" class="group-subpanel balances-panel" role="tabpanel" aria-labelledby="balance-tab-balances" hidden>
+        <h3 class="receipt-subtitle">Who stands where</h3>
         <div id="balances-grid" class="balances-grid"></div>
       </section>
 
       <!-- PAYMENTS -->
-      <section id="panel-payments" class="panel payments-panel tab-panel" role="tabpanel" aria-labelledby="tab-payments" hidden>
-        <h2 class="panel-title"><span class="panel-num">03</span> Mark a payment</h2>
-        <p class="panel-hint">Record a partial or full payment toward what a roommate owes. Choose who is sending money and who is receiving it.</p>
+      <section id="panel-payments" class="group-subpanel payments-panel" role="tabpanel" aria-labelledby="log-tab-payments" hidden>
+        <h3 class="receipt-subtitle">Log a payment</h3>
         <form id="payment-form" class="payment-form">
           <div class="field">
             <label for="payment-from">Who paid</label>
@@ -162,30 +191,11 @@
       </section>
 
       <!-- SETTLE UP -->
-      <section id="panel-settle" class="panel settle-panel tab-panel" role="tabpanel" aria-labelledby="tab-settle">
-        <h2 class="panel-title"><span class="panel-num">04</span> Settle up</h2>
+      <section id="panel-settle" class="group-subpanel settle-panel" role="tabpanel" aria-labelledby="balance-tab-settle">
+        <h3 class="receipt-subtitle">Settle up</h3>
         <p class="panel-hint">What everyone still needs to pay.</p>
         <ul id="settle-list" class="settle-list"></ul>
         <p id="settle-empty" class="empty-note">Everyone's square. Nicely done.</p>
-      </section>
-
-      <!-- ACTIVITY LOG -->
-      <section id="panel-log" class="panel log-panel tab-panel" role="tabpanel" aria-labelledby="tab-log" hidden>
-        <h2 class="panel-title"><span class="panel-num">06</span> Activity log</h2>
-        <div class="log-sections">
-          <section id="log-payments-section" class="log-section log-payments">
-            <h3>Payments by date</h3>
-            <ol id="log-payment-list" class="log-list"></ol>
-            <button id="log-payment-more" type="button" class="log-more-button" hidden>View more payments</button>
-            <p id="log-payment-empty" class="empty-note">No payments recorded yet.</p>
-          </section>
-          <section id="log-expenses-section" class="log-section log-expenses">
-            <h3>Utility expenses by date</h3>
-            <ol id="log-expense-list" class="log-list"></ol>
-            <button id="log-expense-more" type="button" class="log-more-button" hidden>View more expenses</button>
-            <p id="log-expense-empty" class="empty-note">No utility expenses recorded yet.</p>
-          </section>
-        </div>
       </section>
 
     </main>
@@ -208,22 +218,24 @@
         </div>
         <button id="settings-menu-close" class="settings-menu-close" type="button" aria-label="Close settings">&times;</button>
       </div>
-      <form id="account-name-form" class="account-name-form">
-        <label for="account-name-input">Account name</label>
+      <form id="account-name-form" class="settings-row account-name-form">
+        <div class="settings-row-copy"><h3>Account name</h3><p>Choose the name shown throughout the ledger.</p></div>
         <div class="account-name-controls">
+          <label class="sr-only" for="account-name-input">Account name</label>
           <input id="account-name-input" type="text" autocomplete="given-name" maxlength="31" required>
           <button type="submit">Save name</button>
         </div>
       </form>
       <p id="account-name-error" class="auth-error" role="alert" hidden></p>
-      <div class="settings-notifications">
-        <div>
+      <div class="settings-row settings-notifications">
+        <div class="settings-row-copy">
           <h3>Phone alerts</h3>
           <p>Get a notification when you have a payment reminder.</p>
         </div>
-        <button id="notification-button" class="notification-button" type="button" hidden aria-label="Enable phone alerts">Enable alerts</button>
+        <button id="notification-button" class="notification-button settings-action-button" type="button" hidden aria-label="Enable phone alerts">Enable alerts</button>
       </div>
-      <button id="developer-menu-button" class="developer-menu-button" type="button" hidden>Developer menu</button>
+      <div id="developer-settings-row" class="settings-row" hidden><div class="settings-row-copy"><h3>Developer tools</h3><p>Manage the accounts that can use this ledger.</p></div><button id="developer-menu-button" class="settings-action-button" type="button">Developer menu</button></div>
+      <div class="settings-row settings-signout"><div class="settings-row-copy"><h3>Sign out</h3><p>End your session on this device.</p></div><button id="logout-button" type="button" class="settings-action-button settings-danger-button">Sign out</button></div>
     </div>
   </section>
 
@@ -242,6 +254,6 @@
     </div>
   </section>
 
-<script src="app.js?v=20260807-settings-r3"></script>
+<script src="app.js?v=20260807-other-description-r6"></script>
 </body>
 </html>

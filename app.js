@@ -21,6 +21,7 @@ const authModeToggle = document.getElementById('auth-mode-toggle');
 const authCopy = document.getElementById('auth-copy');
 const logoutButton = document.getElementById('logout-button');
 const developerMenuButton = document.getElementById('developer-menu-button');
+const developerSettingsRow = document.getElementById('developer-settings-row');
 const developerMenu = document.getElementById('developer-menu');
 const developerMenuClose = document.getElementById('developer-menu-close');
 const developerAccountList = document.getElementById('developer-account-list');
@@ -34,7 +35,7 @@ const accountNameInput = document.getElementById('account-name-input');
 const accountNameError = document.getElementById('account-name-error');
 let authMode = 'sign-in';
 let currentUser = null;
-const APP_VERSION = '20260807-settings-r3';
+const APP_VERSION = '20260807-other-description-r6';
 
 const DEFAULT_STATE = {
   people: [],
@@ -273,6 +274,8 @@ const roommateList = document.getElementById('roommate-list');
 
 const expenseForm = document.getElementById('expense-form');
 const categoryInput = document.getElementById('exp-category');
+const descriptionField = document.getElementById('exp-description-field');
+const descriptionInput = document.getElementById('exp-description');
 const amountInput = document.getElementById('exp-amount');
 const payerSelect = document.getElementById('exp-payer');
 const dateInput = document.getElementById('exp-date');
@@ -300,9 +303,13 @@ const logExpenseList = document.getElementById('log-expense-list');
 const logExpenseEmpty = document.getElementById('log-expense-empty');
 const logExpenseMore = document.getElementById('log-expense-more');
 const logExpenseSection = document.getElementById('log-expenses-section');
+const logOtherList = document.getElementById('log-other-list');
+const logOtherEmpty = document.getElementById('log-other-empty');
+const logOtherMore = document.getElementById('log-other-more');
 
 let isPaymentLogExpanded = false;
 let isExpenseLogExpanded = false;
+let isOtherLogExpanded = false;
 
 logPaymentMore?.addEventListener('click', () => {
   isPaymentLogExpanded = !isPaymentLogExpanded;
@@ -314,8 +321,82 @@ logExpenseMore?.addEventListener('click', () => {
   renderActivityLog();
 });
 
-const tabButtons = [...document.querySelectorAll('[role="tab"]')];
-const tabPanels = [...document.querySelectorAll('[role="tabpanel"]')];
+logOtherMore?.addEventListener('click', () => {
+  isOtherLogExpanded = !isOtherLogExpanded;
+  renderActivityLog();
+});
+
+const tabButtons = [...document.querySelectorAll('.tab-list [role="tab"]')];
+const tabPanels = [...document.querySelectorAll('.tab-panel')];
+const receiptTabButtons = [...document.querySelectorAll('[data-receipt-tab]')];
+const receiptTabPanels = [...document.querySelectorAll('.receipt-subpanel')];
+const balancePanelContent = document.getElementById('balance-panel-content');
+const logPanelContent = document.getElementById('log-panel-content');
+
+balancePanelContent.append(document.getElementById('panel-settle'), document.getElementById('panel-balances'));
+logPanelContent.append(document.getElementById('panel-expense'), document.getElementById('panel-payments'));
+
+function setupSubTabs(attribute, panelPrefix, onActivate) {
+  const buttons = [...document.querySelectorAll(`[data-${attribute}-tab]`)];
+  const panels = buttons.map((button) => document.getElementById(button.getAttribute('aria-controls')));
+  const activate = (name) => {
+    buttons.forEach((button) => {
+      const active = button.dataset[`${attribute}Tab`] === name;
+      button.setAttribute('aria-selected', String(active));
+      button.tabIndex = active ? 0 : -1;
+    });
+    panels.forEach((panel) => { panel.hidden = panel.id !== `${panelPrefix}${name}`; });
+    onActivate?.(name);
+  };
+  buttons.forEach((button, index) => {
+    button.addEventListener('click', () => activate(button.dataset[`${attribute}Tab`]));
+    button.addEventListener('keydown', (event) => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      let nextIndex = index;
+      if (event.key === 'ArrowLeft') nextIndex = (index - 1 + buttons.length) % buttons.length;
+      if (event.key === 'ArrowRight') nextIndex = (index + 1) % buttons.length;
+      if (event.key === 'Home') nextIndex = 0;
+      if (event.key === 'End') nextIndex = buttons.length - 1;
+      buttons[nextIndex].focus();
+      activate(buttons[nextIndex].dataset[`${attribute}Tab`]);
+    });
+  });
+  const selected = buttons.find((button) => button.getAttribute('aria-selected') === 'true') || buttons[0];
+  if (selected) activate(selected.dataset[`${attribute}Tab`]);
+}
+
+setupSubTabs('balance', 'panel-');
+setupSubTabs('log', 'panel-', (name) => {
+  if (name === 'payments') paymentDate.value = currentEasternDate();
+});
+
+function activateReceiptTab(tabName) {
+  receiptTabButtons.forEach((button) => {
+    const active = button.dataset.receiptTab === tabName;
+    button.setAttribute('aria-selected', String(active));
+    button.tabIndex = active ? 0 : -1;
+  });
+  receiptTabPanels.forEach((panel) => {
+    panel.hidden = panel.id !== `receipt-panel-${tabName}`;
+  });
+}
+
+receiptTabButtons.forEach((button, index) => {
+  button.addEventListener('click', () => activateReceiptTab(button.dataset.receiptTab));
+  button.addEventListener('keydown', (event) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    let nextIndex = index;
+    if (event.key === 'ArrowLeft') nextIndex = (index - 1 + receiptTabButtons.length) % receiptTabButtons.length;
+    if (event.key === 'ArrowRight') nextIndex = (index + 1) % receiptTabButtons.length;
+    if (event.key === 'Home') nextIndex = 0;
+    if (event.key === 'End') nextIndex = receiptTabButtons.length - 1;
+    receiptTabButtons[nextIndex].focus();
+    activateReceiptTab(receiptTabButtons[nextIndex].dataset.receiptTab);
+  });
+});
+activateReceiptTab('totals');
 
 function currentEasternDate() {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -348,9 +429,6 @@ function activateTab(tabName) {
     panel.hidden = panel.id !== `panel-${tabName}`;
   });
 
-  if (tabName === 'payments') {
-    paymentDate.value = currentEasternDate();
-  }
 }
 
 tabButtons.forEach((button, index) => {
@@ -479,11 +557,25 @@ function renderFormOptions() {
     el.disabled = disabled;
   });
   payerSelect.disabled = disabled || !isDeveloper;
+  updateDescriptionField();
 }
+
+function updateDescriptionField() {
+  const isOther = categoryInput.value === 'other';
+  descriptionInput.setCustomValidity('');
+  descriptionField.hidden = !isOther;
+  descriptionInput.disabled = !isOther || state.people.length === 0;
+  descriptionInput.required = isOther;
+  if (!isOther) descriptionInput.value = '';
+}
+
+categoryInput.addEventListener('change', updateDescriptionField);
+descriptionInput.addEventListener('input', () => descriptionInput.setCustomValidity(''));
 
 expenseForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const category = categoryInput.value;
+  const description = descriptionInput.value.trim();
   const amount = parseFloat(amountInput.value);
   const paidBy = payerSelect.value;
   const month = monthInput.value;
@@ -492,6 +584,12 @@ expenseForm.addEventListener('submit', async (e) => {
   );
 
   if (!category || !amount || amount <= 0 || !paidBy || !month) return;
+  if (category === 'other' && (!description || /\s/.test(description))) {
+    descriptionInput.setCustomValidity('Enter a one-word description without spaces.');
+    descriptionInput.reportValidity();
+    return;
+  }
+  descriptionInput.setCustomValidity('');
   if (splitAmong.length === 0) {
     alert('Pick at least one person to split this with.');
     return;
@@ -500,7 +598,7 @@ expenseForm.addEventListener('submit', async (e) => {
   const year = currentEasternDate().slice(0, 4);
   const expense = {
     id: uid(),
-    desc: categoryLabel(category),
+    desc: category === 'other' ? description : categoryLabel(category),
     category,
     amount,
     paidBy,
@@ -514,6 +612,7 @@ expenseForm.addEventListener('submit', async (e) => {
     state.expenses.unshift(savedExpense);
     saveLocalState();
     amountInput.value = '';
+    descriptionInput.value = '';
     expenseForm.reportValidity && amountInput.focus();
     renderAll();
   } catch (error) {
@@ -699,6 +798,45 @@ function renderActivityLog() {
   }
   logExpenseSection?.classList.toggle('expanded', isExpenseLogExpanded);
 
+  renderExpenseLog(
+    allExpenses.filter((expense) => expenseCategory(expense) === 'other'),
+    logOtherList,
+    logOtherEmpty,
+    logOtherMore,
+    isOtherLogExpanded
+  );
+
+}
+
+function renderExpenseLog(expenses, list, empty, moreButton, expanded) {
+  list.innerHTML = '';
+  empty.style.display = expenses.length ? 'none' : 'block';
+  const preview = expanded ? expenses : expenses.slice(0, LOG_PREVIEW_COUNT);
+  preview.forEach((expense) => {
+    const splitAmong = Array.isArray(expense.splitAmong) ? expense.splitAmong : [];
+    const splitLabel = splitAmong.length === state.people.length
+      ? 'everyone'
+      : splitAmong.length === 2 ? splitAmong.join(' & ') : splitAmong.join(', ');
+    const item = document.createElement('li');
+    item.className = 'log-row log-expense-row';
+    const expenseLabel = expenseCategory(expense) === 'other' && expense.desc
+      ? expense.desc
+      : categoryLabel(expenseCategory(expense));
+    item.innerHTML = `<div class="log-entry-details"><span class="log-date">${formatDate(expense.date)}</span><div class="log-entry-row"><span class="log-entry-main">${escapeHtml(expense.paidBy)}</span><span class="log-entry-split">→ ${escapeHtml(splitLabel)}</span></div><span>${escapeHtml(expenseLabel)}</span></div><span class="log-amount">${money(expense.amount)}</span>`;
+    if (currentUser?.isDeveloper || expense.createdBy === currentUser?.id) {
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.className = 'log-delete-button';
+      deleteButton.textContent = 'Delete';
+      deleteButton.setAttribute('aria-label', `Delete other expense from ${formatDate(expense.date)}`);
+      deleteButton.addEventListener('click', () => deleteExpense(expense.id));
+      item.appendChild(deleteButton);
+      addHoldToRevealDelete(item);
+    }
+    list.appendChild(item);
+  });
+  moreButton.hidden = expenses.length <= LOG_PREVIEW_COUNT;
+  if (!moreButton.hidden) moreButton.textContent = expanded ? 'Show less' : `View ${expenses.length - LOG_PREVIEW_COUNT} more expenses`;
 }
 
 function addHoldToRevealDelete(row) {
@@ -1036,7 +1174,7 @@ accountNameForm.addEventListener('submit', async (event) => {
 
 function setDeveloperAccess(user) {
   currentUser = user || null;
-  developerMenuButton.hidden = !currentUser?.isDeveloper;
+  developerSettingsRow.hidden = !currentUser?.isDeveloper;
   if (!currentUser?.isDeveloper) developerMenu.hidden = true;
   if (!currentUser) settingsMenu.hidden = true;
   updateNotificationButton();
