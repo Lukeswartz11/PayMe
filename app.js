@@ -1064,13 +1064,17 @@ logoutButton.addEventListener('click', async () => {
 });
 
 async function initApp() {
+  const sessionAtStart = getSessionToken();
   try {
     const response = await apiFetch('/api/auth/me');
-    if (!response.ok) return showAuthScreen();
+    if (!response.ok) {
+      if (getSessionToken() === sessionAtStart) showAuthScreen();
+      return;
+    }
     showApp();
     await initState();
   } catch (error) {
-    showAuthScreen();
+    if (getSessionToken() === sessionAtStart) showAuthScreen();
   }
 }
 
@@ -1088,5 +1092,5 @@ function renderAll() {
   renderActivityLog();
 }
 
-initApp();
 setAuthMode(authMode);
+initApp();
