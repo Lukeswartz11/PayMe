@@ -263,6 +263,36 @@ app.get('/api/auth/me', requireAuth, async (req, res) => {
   res.json({ user: { id: user.id, name: user.name || '', isDeveloper: Boolean(user.isDeveloper) } });
 });
 
+app.put('/api/auth/account', requireAuth, async (req, res) => {
+  try {
+    const name = String(req.body?.name || '').trim();
+    if (!validName(name)) return res.status(400).json({ error: 'Enter a valid first name.' });
+    const data = await readPreparedData();
+    const user = data.users.find((candidate) => candidate.id === req.userId);
+    if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
+    if (user.isDeveloper) return res.status(403).json({ error: 'The developer account name cannot be changed here.' });
+    if (data.users.some((candidate) => candidate.id !== user.id && getUserLoginName(candidate) === name.toLowerCase())) return res.status(409).json({ error: 'An account already uses that first name.' });
+    const oldName = user.name;
+    user.name = name;
+    if (oldName !== name) {
+      data.people = data.people.map((person) => person === oldName ? name : person);
+      data.expenses.forEach((expense) => {
+        if (expense.paidBy === oldName) expense.paidBy = name;
+        if (Array.isArray(expense.splitAmong)) expense.splitAmong = expense.splitAmong.map((person) => person === oldName ? name : person);
+      });
+      data.settlements.forEach((settlement) => {
+        if (settlement.from === oldName) settlement.from = name;
+        if (settlement.to === oldName) settlement.to = name;
+      });
+    }
+    await writeData(data);
+    res.json({ user: { id: user.id, name: user.name, isDeveloper: false } });
+  } catch (error) {
+    console.error('PUT /api/auth/account error:', error);
+    res.status(500).json({ error: 'Could not update account.' });
+  }
+});
+
 app.get('/api/developer/accounts', requireAuth, requireDeveloper, async (req, res) => {
   const data = await readPreparedData();
   res.json({ accounts: data.users.map((user) => ({ id: user.id, name: user.name, isDeveloper: Boolean(user.isDeveloper), createdAt: user.createdAt })) });
