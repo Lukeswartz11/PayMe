@@ -714,7 +714,7 @@ function isActiveSettlement(settlement) {
 
 function renderExpenses() {
   expenseListEl.innerHTML = '';
-  const utilityExpenses = state.expenses.filter((expense) => isActiveExpense(expense) && ['gas', 'electric', 'internet'].includes(expenseCategory(expense)));
+  const utilityExpenses = state.expenses.filter((expense) => ['gas', 'electric', 'internet'].includes(expenseCategory(expense)));
   expenseEmpty.style.display = utilityExpenses.length ? 'none' : 'block';
   return renderReceiptMonths(utilityExpenses);
 }
@@ -1014,7 +1014,7 @@ function renderDeveloperAccounts(accounts) {
       } catch (error) { showDeveloperError(error.message); } finally { saveButton.disabled = false; }
     });
     deleteButton.addEventListener('click', async () => {
-      if (!confirm(`Delete ${account.name}'s account? They will be removed from active ledger views, but their name will remain in transaction history.`)) return;
+      if (!confirm(`Delete ${account.name}'s account? They will be removed from Balances and Settle up, but their history will remain.`)) return;
       showDeveloperError();
       deleteButton.disabled = true;
       try {
