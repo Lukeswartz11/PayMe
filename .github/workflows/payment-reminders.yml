@@ -1,0 +1,18 @@
+name: Send payment reminders
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run due reminders
+        env:
+          REMINDER_SECRET: ${{ secrets.REMINDER_CRON_SECRET }}
+        run: |
+          curl --fail --silent --show-error \
+            -X POST "https://payme-9w80.onrender.com/api/push/reminders/run" \
+            -H "x-reminder-secret: $REMINDER_SECRET"
