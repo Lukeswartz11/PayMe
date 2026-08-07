@@ -289,7 +289,7 @@ app.post('/api/auth/signup', async (req, res) => {
     if (!data.people.some((person) => person.toLowerCase() === name.toLowerCase())) data.people.push(name);
     await writeData(data);
     const sessionToken = createSession(user, res);
-    res.status(201).json({ user: { id: user.id, name: user.name, isDeveloper: false }, sessionToken });
+    res.status(201).json({ user: { id: user.id, name: user.name, isDeveloper: false, zelle: '', venmo: '' }, sessionToken });
   } catch (error) {
     console.error('POST /api/auth/signup error:', error);
     res.status(500).json({ error: 'Could not create account.' });
@@ -304,7 +304,7 @@ app.post('/api/auth/signin', async (req, res) => {
     const user = data.users.find((candidate) => getUserLoginName(candidate) === name.toLowerCase());
     if (!user || !validPassword(password, user)) return res.status(401).json({ error: 'Incorrect first name or password.' });
     const sessionToken = createSession(user, res);
-    res.json({ user: { id: user.id, name: user.name || '', isDeveloper: Boolean(user.isDeveloper) }, sessionToken });
+    res.json({ user: { id: user.id, name: user.name || '', isDeveloper: Boolean(user.isDeveloper), zelle: user.zelle || '', venmo: user.venmo || '' }, sessionToken });
   } catch (error) {
     console.error('POST /api/auth/signin error:', error);
     res.status(500).json({ error: 'Could not sign in.' });
@@ -315,7 +315,37 @@ app.get('/api/auth/me', requireAuth, async (req, res) => {
   const data = await readPreparedData();
   const user = data.users.find((candidate) => candidate.id === req.userId);
   if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
-  res.json({ user: { id: user.id, name: user.name || '', isDeveloper: Boolean(user.isDeveloper) } });
+  res.json({ user: { id: user.id, name: user.name || '', isDeveloper: Boolean(user.isDeveloper), zelle: user.zelle || '', venmo: user.venmo || '' } });
+});
+
+app.put('/api/auth/payment-info', requireAuth, async (req, res) => {
+  try {
+    const type = String(req.body?.type || '');
+    const value = String(req.body?.value || '').trim();
+    if (!['zelle', 'venmo'].includes(type)) return res.status(400).json({ error: 'Invalid payment method.' });
+    if (!value || value.length > 100) return res.status(400).json({ error: 'Enter valid payment information.' });
+    const data = await readPreparedData();
+    const user = data.users.find((candidate) => candidate.id === req.userId);
+    if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
+    user[type] = type === 'venmo' ? value.replace(/^@/, '') : value;
+    await writeData(data);
+    res.json({ zelle: user.zelle || '', venmo: user.venmo || '' });
+  } catch (error) {
+    console.error('PUT /api/auth/payment-info error:', error);
+    res.status(500).json({ error: 'Could not save payment information.' });
+  }
+});
+
+app.get('/api/payment-info/:name', requireAuth, async (req, res) => {
+  try {
+    const data = await readPreparedData();
+    const name = decodeURIComponent(req.params.name).toLowerCase();
+    const user = data.users.find((candidate) => String(candidate.name || '').toLowerCase() === name);
+    if (!user) return res.status(404).json({ error: 'Recipient account not found.' });
+    res.json({ name: user.name, zelle: user.zelle || '', venmo: user.venmo || '' });
+  } catch (error) {
+    res.status(500).json({ error: 'Could not load payment information.' });
+  }
 });
 
 app.put('/api/auth/account', requireAuth, async (req, res) => {
@@ -341,7 +371,7 @@ app.put('/api/auth/account', requireAuth, async (req, res) => {
       });
     }
     await writeData(data);
-    res.json({ user: { id: user.id, name: user.name, isDeveloper: false } });
+    res.json({ user: { id: user.id, name: user.name, isDeveloper: false, zelle: user.zelle || '', venmo: user.venmo || '' } });
   } catch (error) {
     console.error('PUT /api/auth/account error:', error);
     res.status(500).json({ error: 'Could not update account.' });

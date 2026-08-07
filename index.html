@@ -234,8 +234,28 @@
         </div>
         <button id="notification-button" class="notification-button settings-action-button" type="button" hidden aria-label="Enable phone alerts">Enable alerts</button>
       </div>
+      <div class="settings-row">
+        <div class="settings-row-copy"><h3>Zelle information</h3><p>Add the email address or phone number enrolled with Zelle.</p></div>
+        <button id="zelle-info-button" class="settings-action-button" type="button">Add Zelle information</button>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-copy"><h3>Venmo information</h3><p>Add your Venmo username so payments can open prefilled.</p></div>
+        <button id="venmo-info-button" class="settings-action-button" type="button">Add Venmo information</button>
+      </div>
       <div id="developer-settings-row" class="settings-row" hidden><div class="settings-row-copy"><h3>Developer tools</h3><p>Manage the accounts that can use this ledger.</p></div><button id="developer-menu-button" class="settings-action-button" type="button">Developer menu</button></div>
       <div class="settings-row settings-signout"><div class="settings-row-copy"><h3>Sign out</h3><p>End your session on this device.</p></div><button id="logout-button" type="button" class="settings-action-button settings-danger-button">Sign out</button></div>
+    </div>
+  </section>
+
+  <section id="pay-now-menu" class="settings-menu" role="dialog" aria-modal="true" aria-labelledby="pay-now-title" hidden>
+    <div class="settings-menu-card">
+      <div class="settings-menu-heading"><div><p class="eyebrow">Payment recorded</p><h2 id="pay-now-title">Pay now</h2></div><button id="pay-now-close" class="settings-menu-close" type="button" aria-label="Close payment options">&times;</button></div>
+      <p id="pay-now-summary" class="developer-menu-note"></p>
+      <div class="pay-now-actions">
+        <button id="pay-with-venmo" class="settings-action-button" type="button">Open Venmo</button>
+        <button id="pay-with-zelle" class="settings-action-button" type="button">Copy for Zelle</button>
+      </div>
+      <p id="pay-now-note" class="settings-payment-note"></p>
     </div>
   </section>
 
@@ -254,6 +274,6 @@
     </div>
   </section>
 
-<script src="app.js?v=20260807-other-description-r6"></script>
+<script src="app.js?v=20260807-payment-links-r9"></script>
 </body>
 </html>

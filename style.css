@@ -237,6 +237,9 @@ body :where(h1, h2, h3, p, span, label, legend, li, button, input, select) {
 .settings-notifications h3 { margin: 0; font-size: 0.9rem; }
 .settings-notifications p { margin: 0.25rem 0 0; color: var(--ink-soft); font-size: 0.78rem; line-height: 1.35; }
 .settings-danger-button { border-color: var(--stamp-red-ink); }
+.settings-payment-note { margin: 0.8rem 0 0; color: var(--ink-soft); font-size: 0.78rem; line-height: 1.4; }
+.pay-now-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; margin-top: 1rem; }
+.pay-now-actions .settings-action-button { width: 100%; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .notification-button { flex: 0 0 auto; }
 .notification-button:disabled { cursor: not-allowed; opacity: 0.48; }

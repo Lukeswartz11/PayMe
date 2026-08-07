@@ -27,6 +27,14 @@ const developerMenuClose = document.getElementById('developer-menu-close');
 const developerAccountList = document.getElementById('developer-account-list');
 const developerMenuError = document.getElementById('developer-menu-error');
 const notificationButton = document.getElementById('notification-button');
+const zelleInfoButton = document.getElementById('zelle-info-button');
+const venmoInfoButton = document.getElementById('venmo-info-button');
+const payNowMenu = document.getElementById('pay-now-menu');
+const payNowClose = document.getElementById('pay-now-close');
+const payNowSummary = document.getElementById('pay-now-summary');
+const payNowNote = document.getElementById('pay-now-note');
+const payWithVenmo = document.getElementById('pay-with-venmo');
+const payWithZelle = document.getElementById('pay-with-zelle');
 const settingsButton = document.getElementById('settings-button');
 const settingsMenu = document.getElementById('settings-menu');
 const settingsMenuClose = document.getElementById('settings-menu-close');
@@ -35,7 +43,7 @@ const accountNameInput = document.getElementById('account-name-input');
 const accountNameError = document.getElementById('account-name-error');
 let authMode = 'sign-in';
 let currentUser = null;
-const APP_VERSION = '20260807-other-description-r6';
+const APP_VERSION = '20260807-payment-links-r9';
 
 const DEFAULT_STATE = {
   people: [],
@@ -710,11 +718,52 @@ paymentForm.addEventListener('submit', async (event) => {
     saveLocalState();
     paymentAmount.value = '';
     renderAll();
+    showPayNow(savedSettlement);
   } catch (error) {
     console.error(error);
     alert('Could not save payment. Please try again.');
   }
 });
+
+async function showPayNow(payment) {
+  payNowSummary.textContent = `${money(payment.amount)} to ${payment.to}`;
+  payNowNote.textContent = 'Loading payment options…';
+  payWithVenmo.disabled = true;
+  payWithZelle.disabled = true;
+  payNowMenu.hidden = false;
+  try {
+    const response = await apiFetch(`/api/payment-info/${encodeURIComponent(payment.to)}`);
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new Error('Payment links need the latest backend. Deploy the newest commit to Render, then try again.');
+    }
+    const info = await response.json();
+    if (!response.ok) throw new Error(info.error || 'Could not load payment information.');
+    payWithVenmo.disabled = !info.venmo;
+    payWithZelle.disabled = !info.zelle;
+    payWithVenmo.onclick = () => {
+      const params = new URLSearchParams({ txn: 'pay', recipients: info.venmo, amount: Number(payment.amount).toFixed(2), note: 'Pay Luke' });
+      window.open(`https://venmo.com/?${params}`, '_blank', 'noopener');
+    };
+    payWithZelle.onclick = async () => {
+      const details = `${info.zelle} — ${money(payment.amount)}`;
+      try {
+        await navigator.clipboard.writeText(details);
+        payNowNote.textContent = `Copied ${details}. Open your banking app and select Zelle to finish the payment.`;
+      } catch (error) {
+        payNowNote.textContent = `Use ${info.zelle} in your banking app and send ${money(payment.amount)} with Zelle.`;
+      }
+    };
+    payNowNote.textContent = info.venmo || info.zelle
+      ? 'Choose a payment app to finish sending the money. Recording it here did not transfer funds.'
+      : `${payment.to} has not added Zelle or Venmo information yet.`;
+  } catch (error) {
+    payNowNote.textContent = error.message || 'Payment options are unavailable.';
+  }
+}
+
+payNowClose.addEventListener('click', () => { payNowMenu.hidden = true; });
+payNowMenu.addEventListener('click', (event) => { if (event.target === payNowMenu) payNowMenu.hidden = true; });
 
 async function deletePayment(id) {
   try {
@@ -1144,6 +1193,39 @@ async function enablePhoneAlerts() {
 
 notificationButton.addEventListener('click', enablePhoneAlerts);
 
+function updatePaymentInfoButtons() {
+  zelleInfoButton.textContent = currentUser?.zelle ? 'Update Zelle information' : 'Add Zelle information';
+  venmoInfoButton.textContent = currentUser?.venmo ? 'Update Venmo information' : 'Add Venmo information';
+}
+
+async function savePaymentInfo(type) {
+  const label = type === 'zelle' ? 'Zelle email or phone number' : 'Venmo username';
+  const existing = currentUser?.[type] || '';
+  const value = prompt(label, existing);
+  if (value === null) return;
+  if (!value.trim()) return alert(`Enter your ${label.toLowerCase()}.`);
+  try {
+    const response = await apiFetch('/api/auth/payment-info', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, value: value.trim() }),
+    });
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new Error('Payment information needs the latest backend. Deploy the newest commit to Render, then try again.');
+    }
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'Could not save payment information.');
+    currentUser = { ...currentUser, ...payload };
+    updatePaymentInfoButtons();
+  } catch (error) {
+    alert(error.message || 'Could not save payment information.');
+  }
+}
+
+zelleInfoButton.addEventListener('click', () => savePaymentInfo('zelle'));
+venmoInfoButton.addEventListener('click', () => savePaymentInfo('venmo'));
+
 function openSettingsMenu() {
   accountNameInput.value = currentUser?.name || '';
   accountNameError.hidden = true;
@@ -1178,6 +1260,7 @@ function setDeveloperAccess(user) {
   if (!currentUser?.isDeveloper) developerMenu.hidden = true;
   if (!currentUser) settingsMenu.hidden = true;
   updateNotificationButton();
+  updatePaymentInfoButtons();
 }
 
 function showDeveloperError(message = '') {
