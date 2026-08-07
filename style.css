@@ -26,6 +26,8 @@
 
 * { box-sizing: border-box; }
 
+[hidden] { display: none !important; }
+
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }
