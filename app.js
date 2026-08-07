@@ -26,9 +26,15 @@ const developerMenuClose = document.getElementById('developer-menu-close');
 const developerAccountList = document.getElementById('developer-account-list');
 const developerMenuError = document.getElementById('developer-menu-error');
 const notificationButton = document.getElementById('notification-button');
+const settingsButton = document.getElementById('settings-button');
+const settingsMenu = document.getElementById('settings-menu');
+const settingsMenuClose = document.getElementById('settings-menu-close');
+const accountNameForm = document.getElementById('account-name-form');
+const accountNameInput = document.getElementById('account-name-input');
+const accountNameError = document.getElementById('account-name-error');
 let authMode = 'sign-in';
 let currentUser = null;
-const APP_VERSION = '20260807-name-login-r2';
+const APP_VERSION = '20260807-settings-r3';
 
 const DEFAULT_STATE = {
   people: [],
@@ -1000,10 +1006,39 @@ async function enablePhoneAlerts() {
 
 notificationButton.addEventListener('click', enablePhoneAlerts);
 
+function openSettingsMenu() {
+  accountNameInput.value = currentUser?.name || '';
+  accountNameError.hidden = true;
+  settingsMenu.hidden = false;
+  accountNameInput.focus();
+}
+
+settingsButton.addEventListener('click', openSettingsMenu);
+settingsMenuClose.addEventListener('click', () => { settingsMenu.hidden = true; });
+settingsMenu.addEventListener('click', (event) => { if (event.target === settingsMenu) settingsMenu.hidden = true; });
+
+accountNameForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const name = accountNameInput.value.trim();
+  accountNameError.hidden = true;
+  try {
+    const response = await apiFetch('/api/auth/account', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'Could not update account name.');
+    setDeveloperAccess(payload.user);
+    accountNameInput.value = payload.user.name;
+    await initState();
+  } catch (error) {
+    accountNameError.textContent = error.message || 'Could not update account name.';
+    accountNameError.hidden = false;
+  }
+});
+
 function setDeveloperAccess(user) {
   currentUser = user || null;
   developerMenuButton.hidden = !currentUser?.isDeveloper;
   if (!currentUser?.isDeveloper) developerMenu.hidden = true;
+  if (!currentUser) settingsMenu.hidden = true;
   updateNotificationButton();
 }
 

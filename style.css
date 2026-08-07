@@ -221,15 +221,29 @@ body :where(h1, h2, h3, p, span, label, legend, li, button, input, select) {
 }
 
 .title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
-.header-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.45rem; }
-.notification-button { margin-top: 0.62rem; padding: 0.22rem 0.42rem; border: 1px solid color-mix(in srgb, var(--ink-soft) 38%, transparent); border-radius: 999px; background: transparent; color: var(--ink-soft); font: 700 0.57rem var(--font-mono); letter-spacing: 0.02em; text-transform: uppercase; cursor: pointer; opacity: 0.82; transition: color 160ms ease, border-color 160ms ease, background 160ms ease, opacity 160ms ease; }
+.header-actions { display: flex; justify-content: flex-end; }
+.settings-button { width: 2.25rem; height: 2.25rem; padding: 0; border: 1px solid color-mix(in srgb, var(--ink-soft) 38%, transparent); border-radius: 50%; background: var(--paper); color: var(--ink); font-size: 1.25rem; line-height: 1; cursor: pointer; transition: color 160ms ease, border-color 160ms ease, transform 160ms ease; }
+.settings-button:hover { border-color: var(--stamp-red-ink); color: var(--stamp-red-ink); transform: rotate(24deg); }
+.settings-menu { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 1.5rem; background: rgba(36, 36, 36, 0.55); }
+.settings-menu-card { width: min(100%, 440px); padding: 1.5rem; border: 2px solid var(--paper-line); border-radius: 8px; background: var(--paper); box-shadow: 0 10px 30px var(--shadow); }
+.settings-menu-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.settings-menu-heading h2 { margin: 0; font-family: var(--font-display); }
+.settings-menu-close { border: 0; background: transparent; color: var(--ink-soft); font-size: 2rem; line-height: 1; cursor: pointer; }
+.account-name-form { display: grid; gap: 0.35rem; margin-top: 1.35rem; font-size: 0.78rem; color: var(--ink-soft); }
+.account-name-controls { display: flex; gap: 0.5rem; }
+.account-name-controls input { min-width: 0; flex: 1; padding: 0.6rem; border: 2px solid var(--paper-line); border-radius: 4px; font: inherit; color: var(--ink); }
+.account-name-controls button, .developer-menu-button { padding: 0.62rem 0.7rem; border: 2px solid var(--stamp-red-ink); border-radius: 4px; background: var(--paper); color: var(--stamp-red-ink); font: 700 0.68rem var(--font-mono); text-transform: uppercase; cursor: pointer; }
+.account-name-controls button:hover, .developer-menu-button:hover { background: var(--stamp-red); color: var(--paper); }
+.settings-notifications { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1.25rem; padding-top: 1.1rem; border-top: 1px solid var(--paper-line); }
+.settings-notifications h3 { margin: 0; font-size: 0.9rem; }
+.settings-notifications p { margin: 0.25rem 0 0; color: var(--ink-soft); font-size: 0.78rem; line-height: 1.35; }
+.settings-menu-card .developer-menu-button { margin-top: 1.25rem; }
+.notification-button { flex: 0 0 auto; padding: 0.42rem 0.55rem; border: 1px solid color-mix(in srgb, var(--ink-soft) 38%, transparent); border-radius: 999px; background: transparent; color: var(--ink-soft); font: 700 0.57rem var(--font-mono); letter-spacing: 0.02em; text-transform: uppercase; cursor: pointer; opacity: 0.82; transition: color 160ms ease, border-color 160ms ease, background 160ms ease, opacity 160ms ease; }
 .notification-button::before { content: '◦'; display: inline-block; margin-right: 0.28rem; color: var(--stamp-red-ink); font-size: 0.9rem; line-height: 0.5; vertical-align: -0.04rem; }
 .notification-button:hover { border-color: var(--stamp-red-ink); color: var(--stamp-red-ink); background: color-mix(in srgb, var(--stamp-red) 7%, transparent); opacity: 1; }
 .notification-button.is-enabled { border-color: color-mix(in srgb, var(--stamp-red-ink) 38%, transparent); color: var(--stamp-red-ink); }
 .notification-button.is-enabled::before { content: '●'; font-size: 0.48rem; vertical-align: 0.02rem; }
 .notification-button:disabled { cursor: not-allowed; opacity: 0.48; }
-.developer-menu-button { margin-top: 0.4rem; padding: 0.5rem 0.7rem; border: 2px solid var(--stamp-red-ink); border-radius: 4px; background: var(--paper); color: var(--stamp-red-ink); font: 700 0.68rem var(--font-mono); text-transform: uppercase; cursor: pointer; }
-.developer-menu-button:hover { background: var(--stamp-red); color: var(--paper); }
 .developer-menu { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 1.5rem; background: rgba(36, 36, 36, 0.55); }
 .developer-menu-card { width: min(100%, 680px); max-height: min(82vh, 760px); overflow: auto; padding: 1.5rem; border: 2px solid var(--paper-line); border-radius: 8px; background: var(--paper); box-shadow: 0 10px 30px var(--shadow); }
 .developer-menu-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
@@ -989,6 +1003,9 @@ input:focus-visible, select:focus-visible, button:focus-visible {
 }
 
 @media (max-width: 460px) {
+  .settings-menu { padding: 0.8rem; }
+  .settings-menu-card { padding: 1.2rem; }
+  .settings-notifications { align-items: flex-start; flex-direction: column; }
   .expense-form { grid-template-columns: 1fr; }
   .payment-form { grid-template-columns: 1fr; }
   .tab-button { flex-basis: auto; }
