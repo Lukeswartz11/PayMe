@@ -20,7 +20,13 @@ const authSubmit = document.getElementById('auth-submit');
 const authModeToggle = document.getElementById('auth-mode-toggle');
 const authCopy = document.getElementById('auth-copy');
 const logoutButton = document.getElementById('logout-button');
+const developerMenuButton = document.getElementById('developer-menu-button');
+const developerMenu = document.getElementById('developer-menu');
+const developerMenuClose = document.getElementById('developer-menu-close');
+const developerAccountList = document.getElementById('developer-account-list');
+const developerMenuError = document.getElementById('developer-menu-error');
 let authMode = 'sign-in';
+let currentUser = null;
 const APP_VERSION = '20260807-name-login-r2';
 
 const DEFAULT_STATE = {
@@ -563,30 +569,14 @@ function renderPaymentOptions() {
   populateSelect(paymentTo, creditors, previousTo, 'No one is owed money');
   paymentFrom.disabled = debtors.length === 0;
   paymentTo.disabled = creditors.length === 0;
-  updatePaymentHint(balance);
   updatePaymentLimit();
-}
-
-function updatePaymentHint(balance) {
-  const hint = document.getElementById('payment-hint');
-  if (!hint) return;
-  if (!paymentFrom.value || !paymentTo.value) {
-    hint.textContent = 'Choose who paid and who was paid, then record the transfer.';
-    return;
-  }
-
-  const owesFrom = balance[paymentFrom.value] < 0;
-  const owesTo = balance[paymentTo.value] > 0;
-  hint.textContent = `${paymentFrom.value} is paying ${paymentTo.value}. ${paymentFrom.value} currently owes ${money(-balance[paymentFrom.value])} and ${paymentTo.value} is owed ${money(balance[paymentTo.value])}.`;
 }
 
 paymentFrom.addEventListener('change', () => {
   updatePaymentLimit();
-  updatePaymentHint(computeBalances());
 });
 paymentTo.addEventListener('change', () => {
   updatePaymentLimit();
-  updatePaymentHint(computeBalances());
 });
 
 paymentForm.addEventListener('submit', async (event) => {
@@ -957,6 +947,101 @@ function escapeHtml(str) {
 // =============================================================
 // ACCOUNT ACCESS
 // =============================================================
+function setDeveloperAccess(user) {
+  currentUser = user || null;
+  developerMenuButton.hidden = !currentUser?.isDeveloper;
+  if (!currentUser?.isDeveloper) developerMenu.hidden = true;
+}
+
+function showDeveloperError(message = '') {
+  developerMenuError.textContent = message;
+  developerMenuError.hidden = !message;
+}
+
+function renderDeveloperAccounts(accounts) {
+  developerAccountList.innerHTML = '';
+  accounts.forEach((account) => {
+    const card = document.createElement('article');
+    card.className = 'developer-account';
+    const title = document.createElement('p');
+    title.className = 'developer-account-title';
+    title.textContent = account.isDeveloper ? `${account.name} — Developer account` : account.name;
+    card.appendChild(title);
+    if (account.isDeveloper) {
+      const note = document.createElement('p');
+      note.className = 'developer-menu-note';
+      note.textContent = 'Protected from edits and deletion.';
+      card.appendChild(note);
+      developerAccountList.appendChild(card);
+      return;
+    }
+    const form = document.createElement('form');
+    form.className = 'developer-account-form';
+    const nameLabel = document.createElement('label');
+    nameLabel.textContent = 'First name';
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text'; nameInput.value = account.name; nameInput.maxLength = 31; nameInput.required = true;
+    nameLabel.appendChild(nameInput);
+    const passwordLabel = document.createElement('label');
+    passwordLabel.textContent = 'New password';
+    const passwordInput = document.createElement('input');
+    passwordInput.type = 'password'; passwordInput.placeholder = 'Leave blank to keep'; passwordInput.minLength = 8;
+    passwordLabel.appendChild(passwordInput);
+    const saveButton = document.createElement('button');
+    saveButton.type = 'submit'; saveButton.textContent = 'Save';
+    const deleteButton = document.createElement('button');
+    deleteButton.type = 'button'; deleteButton.className = 'developer-delete'; deleteButton.textContent = 'Delete';
+    form.append(nameLabel, passwordLabel, saveButton, deleteButton);
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      showDeveloperError();
+      saveButton.disabled = true;
+      try {
+        const response = await apiFetch(`/api/developer/accounts/${encodeURIComponent(account.id)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: nameInput.value.trim(), password: passwordInput.value }) });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || 'Could not update account.');
+        await openDeveloperMenu();
+        await syncStateFromServer();
+      } catch (error) { showDeveloperError(error.message); } finally { saveButton.disabled = false; }
+    });
+    deleteButton.addEventListener('click', async () => {
+      if (!confirm(`Delete ${account.name}'s login account? Their ledger history will remain.`)) return;
+      showDeveloperError();
+      deleteButton.disabled = true;
+      try {
+        const response = await apiFetch(`/api/developer/accounts/${encodeURIComponent(account.id)}`, { method: 'DELETE' });
+        if (!response.ok) {
+          const payload = await response.json();
+          throw new Error(payload.error || 'Could not delete account.');
+        }
+        await openDeveloperMenu();
+      } catch (error) { showDeveloperError(error.message); } finally { deleteButton.disabled = false; }
+    });
+    card.appendChild(form);
+    developerAccountList.appendChild(card);
+  });
+}
+
+async function openDeveloperMenu() {
+  if (!currentUser?.isDeveloper) return;
+  showDeveloperError();
+  developerMenu.hidden = false;
+  developerAccountList.textContent = 'Loading accounts…';
+  try {
+    const response = await apiFetch('/api/developer/accounts');
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'Could not load accounts.');
+    renderDeveloperAccounts(payload.accounts || []);
+  } catch (error) {
+    developerAccountList.innerHTML = '';
+    showDeveloperError(error.message);
+  }
+}
+
+developerMenuButton.addEventListener('click', openDeveloperMenu);
+developerMenuClose.addEventListener('click', () => { developerMenu.hidden = true; });
+developerMenu.addEventListener('click', (event) => { if (event.target === developerMenu) developerMenu.hidden = true; });
+
 function setAuthMode(nextMode) {
   authMode = nextMode;
   const isSignUp = nextMode === 'sign-up';
@@ -973,6 +1058,7 @@ function showAuthScreen() {
   if (syncTimer) clearInterval(syncTimer);
   syncTimer = null;
   clearSessionToken();
+  setDeveloperAccess(null);
   localStorage.removeItem(getStorageKey());
   document.body.classList.remove('is-authenticated');
   appShell.hidden = true;
@@ -982,7 +1068,8 @@ function showAuthScreen() {
   authUsername.focus();
 }
 
-function showApp() {
+function showApp(user) {
+  setDeveloperAccess(user);
   document.body.classList.add('is-authenticated');
   authScreen.hidden = true;
   authScreen.style.display = 'none';
@@ -1010,7 +1097,7 @@ authForm.addEventListener('submit', async (event) => {
     if (!response.ok) throw new Error(payload.error || 'Could not sign in.');
     if (!payload.sessionToken) throw new Error('The server did not create a session. Please try again.');
     saveSessionToken(payload.sessionToken, authRemember.checked);
-    showApp();
+    showApp(payload.user);
     await initState();
   } catch (error) {
     authError.textContent = error.message || 'Could not sign in. Please try again.';
@@ -1036,7 +1123,8 @@ async function initApp() {
       if (getSessionToken() === sessionAtStart) showAuthScreen();
       return;
     }
-    showApp();
+    const payload = await response.json();
+    showApp(payload.user);
     await initState();
   } catch (error) {
     if (getSessionToken() === sessionAtStart) showAuthScreen();

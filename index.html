@@ -35,7 +35,10 @@
     <header class="cover">
       <div class="cover-inner">
         <p class="eyebrow">Da Crib &middot; Payments</p>
-        <h1 class="title">Pay Luke</h1>
+        <div class="title-row">
+          <h1 class="title">Pay Luke</h1>
+          <button id="developer-menu-button" class="developer-menu-button" type="button" hidden>Developer menu</button>
+        </div>
         <p class="subtitle">The Easy app to remind each fucker how much they owe me for utilities each month.</p>
         <p id="sync-status" class="sync-status">Syncing with shared ledger…</p>
         <button id="logout-button" type="button" class="logout-button">Sign out</button>
@@ -149,7 +152,6 @@
               <input type="number" id="payment-amount" placeholder="0.00" step="0.01" min="0.01" required>
             </div>
           </div>
-          <p id="payment-hint" class="payment-hint">Choose who paid and who was paid, then record the transfer.</p>
           <input type="hidden" id="payment-date">
           <button type="submit" class="btn btn-red btn-wide">Record payment</button>
         </form>
@@ -192,6 +194,21 @@
   </div> -->
 
   </div>
+
+  <section id="developer-menu" class="developer-menu" role="dialog" aria-modal="true" aria-labelledby="developer-menu-title" hidden>
+    <div class="developer-menu-card">
+      <div class="developer-menu-heading">
+        <div>
+          <p class="eyebrow">Luke only</p>
+          <h2 id="developer-menu-title">Developer menu</h2>
+        </div>
+        <button id="developer-menu-close" class="developer-menu-close" type="button" aria-label="Close developer menu">&times;</button>
+      </div>
+      <p class="developer-menu-note">Manage sign-in accounts. Deleting an account removes its login access but retains the ledger history.</p>
+      <p id="developer-menu-error" class="auth-error" role="alert" hidden></p>
+      <div id="developer-account-list" class="developer-account-list"></div>
+    </div>
+  </section>
 
 <script src="app.js?v=20260807-name-login-r2"></script>
 </body>

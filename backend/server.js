@@ -84,6 +84,10 @@ function getUserLoginName(user) {
   return String(user.name || user.username || '').trim().toLowerCase();
 }
 
+function validName(name) {
+  return /^[a-zA-Z][a-zA-Z '-]{0,30}$/.test(name);
+}
+
 function prepareHousehold(data) {
   let changed = false;
   const isUntouchedLegacyHousehold = data.people.length === legacyStarterPeople.length && legacyStarterPeople.every((person, index) => data.people[index] === person) && data.expenses.length === 0 && data.settlements.length === 0;
@@ -91,9 +95,13 @@ function prepareHousehold(data) {
     data.people = [];
     changed = true;
   }
-  if (!data.users.some((user) => getUserLoginName(user) === developerAccount.name.toLowerCase())) {
+  const developerUser = data.users.find((user) => getUserLoginName(user) === developerAccount.name.toLowerCase());
+  if (!developerUser) {
     const { salt, hash } = hashPassword(developerAccount.password);
-    data.users.push({ id: crypto.randomUUID(), name: developerAccount.name, salt, passwordHash: hash, createdAt: new Date().toISOString() });
+    data.users.push({ id: crypto.randomUUID(), name: developerAccount.name, isDeveloper: true, salt, passwordHash: hash, createdAt: new Date().toISOString() });
+    changed = true;
+  } else if (!developerUser.isDeveloper) {
+    developerUser.isDeveloper = true;
     changed = true;
   }
   if (!data.people.some((person) => person.toLowerCase() === developerAccount.name.toLowerCase())) {
@@ -136,6 +144,19 @@ function requireAuth(request, response, next) {
   next();
 }
 
+async function requireDeveloper(request, response, next) {
+  try {
+    const data = await readPreparedData();
+    const user = data.users.find((candidate) => candidate.id === request.userId);
+    if (!user?.isDeveloper) return response.status(403).json({ error: 'Developer access required.' });
+    request.developer = user;
+    next();
+  } catch (error) {
+    console.error('Developer authorization error:', error);
+    response.status(500).json({ error: 'Could not verify developer access.' });
+  }
+}
+
 async function writeData(data) {
   if (firebaseDbUrl) {
     const response = await fetch(`${firebaseDbUrl}/state.json`, {
@@ -154,7 +175,7 @@ app.post('/api/auth/signup', async (req, res) => {
   try {
     const name = String(req.body?.name || '').trim();
     const password = String(req.body?.password || '');
-    if (!/^[a-zA-Z][a-zA-Z '-]{0,30}$/.test(name)) return res.status(400).json({ error: 'Enter a valid first name.' });
+    if (!validName(name)) return res.status(400).json({ error: 'Enter a valid first name.' });
     if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
     const data = await readPreparedData();
     if (data.users.some((user) => getUserLoginName(user) === name.toLowerCase())) return res.status(409).json({ error: 'An account already uses that first name.' });
@@ -164,7 +185,7 @@ app.post('/api/auth/signup', async (req, res) => {
     if (!data.people.some((person) => person.toLowerCase() === name.toLowerCase())) data.people.push(name);
     await writeData(data);
     const sessionToken = createSession(user, res);
-    res.status(201).json({ user: { name: user.name }, sessionToken });
+    res.status(201).json({ user: { name: user.name, isDeveloper: false }, sessionToken });
   } catch (error) {
     console.error('POST /api/auth/signup error:', error);
     res.status(500).json({ error: 'Could not create account.' });
@@ -179,7 +200,7 @@ app.post('/api/auth/signin', async (req, res) => {
     const user = data.users.find((candidate) => getUserLoginName(candidate) === name.toLowerCase());
     if (!user || !validPassword(password, user)) return res.status(401).json({ error: 'Incorrect first name or password.' });
     const sessionToken = createSession(user, res);
-    res.json({ user: { name: user.name || '' }, sessionToken });
+    res.json({ user: { name: user.name || '', isDeveloper: Boolean(user.isDeveloper) }, sessionToken });
   } catch (error) {
     console.error('POST /api/auth/signin error:', error);
     res.status(500).json({ error: 'Could not sign in.' });
@@ -190,7 +211,65 @@ app.get('/api/auth/me', requireAuth, async (req, res) => {
   const data = await readPreparedData();
   const user = data.users.find((candidate) => candidate.id === req.userId);
   if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
-  res.json({ user: { name: user.name || '' } });
+  res.json({ user: { name: user.name || '', isDeveloper: Boolean(user.isDeveloper) } });
+});
+
+app.get('/api/developer/accounts', requireAuth, requireDeveloper, async (req, res) => {
+  const data = await readPreparedData();
+  res.json({ accounts: data.users.map((user) => ({ id: user.id, name: user.name, isDeveloper: Boolean(user.isDeveloper), createdAt: user.createdAt })) });
+});
+
+app.put('/api/developer/accounts/:id', requireAuth, requireDeveloper, async (req, res) => {
+  try {
+    const name = String(req.body?.name || '').trim();
+    const password = String(req.body?.password || '');
+    if (!validName(name)) return res.status(400).json({ error: 'Enter a valid first name.' });
+    if (password && password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    const data = await readPreparedData();
+    const user = data.users.find((candidate) => candidate.id === req.params.id);
+    if (!user) return res.status(404).json({ error: 'Account not found.' });
+    if (user.isDeveloper) return res.status(403).json({ error: 'The developer account cannot be changed here.' });
+    if (data.users.some((candidate) => candidate.id !== user.id && getUserLoginName(candidate) === name.toLowerCase())) return res.status(409).json({ error: 'An account already uses that first name.' });
+    const oldName = user.name;
+    user.name = name;
+    if (password) {
+      const { salt, hash } = hashPassword(password);
+      user.salt = salt;
+      user.passwordHash = hash;
+    }
+    if (oldName !== name) {
+      data.people = data.people.map((person) => person === oldName ? name : person);
+      data.expenses.forEach((expense) => {
+        if (expense.paidBy === oldName) expense.paidBy = name;
+        if (Array.isArray(expense.splitAmong)) expense.splitAmong = expense.splitAmong.map((person) => person === oldName ? name : person);
+      });
+      data.settlements.forEach((settlement) => {
+        if (settlement.from === oldName) settlement.from = name;
+        if (settlement.to === oldName) settlement.to = name;
+      });
+    }
+    await writeData(data);
+    res.json({ account: { id: user.id, name: user.name, isDeveloper: false } });
+  } catch (error) {
+    console.error('PUT /api/developer/accounts error:', error);
+    res.status(500).json({ error: 'Could not update account.' });
+  }
+});
+
+app.delete('/api/developer/accounts/:id', requireAuth, requireDeveloper, async (req, res) => {
+  try {
+    const data = await readPreparedData();
+    const user = data.users.find((candidate) => candidate.id === req.params.id);
+    if (!user) return res.status(404).json({ error: 'Account not found.' });
+    if (user.isDeveloper) return res.status(403).json({ error: 'The developer account cannot be deleted.' });
+    data.users = data.users.filter((candidate) => candidate.id !== user.id);
+    for (const [token, session] of sessions) if (session.userId === user.id) sessions.delete(token);
+    await writeData(data);
+    res.status(204).end();
+  } catch (error) {
+    console.error('DELETE /api/developer/accounts error:', error);
+    res.status(500).json({ error: 'Could not delete account.' });
+  }
 });
 
 app.post('/api/auth/logout', requireAuth, (req, res) => {

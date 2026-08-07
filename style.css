@@ -220,6 +220,26 @@ body :where(h1, h2, h3, p, span, label, legend, li, button, input, select) {
   letter-spacing: -0.01em;
 }
 
+.title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.developer-menu-button { margin-top: 0.4rem; padding: 0.5rem 0.7rem; border: 2px solid var(--stamp-red-ink); border-radius: 4px; background: var(--paper); color: var(--stamp-red-ink); font: 700 0.68rem var(--font-mono); text-transform: uppercase; cursor: pointer; }
+.developer-menu-button:hover { background: var(--stamp-red); color: var(--paper); }
+.developer-menu { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 1.5rem; background: rgba(36, 36, 36, 0.55); }
+.developer-menu-card { width: min(100%, 680px); max-height: min(82vh, 760px); overflow: auto; padding: 1.5rem; border: 2px solid var(--paper-line); border-radius: 8px; background: var(--paper); box-shadow: 0 10px 30px var(--shadow); }
+.developer-menu-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.developer-menu-heading h2 { margin: 0; font-family: var(--font-display); }
+.developer-menu-close { border: 0; background: transparent; color: var(--ink-soft); font-size: 2rem; line-height: 1; cursor: pointer; }
+.developer-menu-note { color: var(--ink-soft); font-size: 0.86rem; line-height: 1.45; }
+.developer-account-list { display: grid; gap: 0.8rem; margin-top: 1.2rem; }
+.developer-account { padding: 1rem; border: 2px solid var(--paper-line); border-radius: 4px; background: var(--card); }
+.developer-account-title { margin: 0 0 0.75rem; font-family: var(--font-mono); font-size: 0.82rem; }
+.developer-account-form { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 0.55rem; align-items: end; }
+.developer-account-form label { display: grid; gap: 0.25rem; font-size: 0.72rem; color: var(--ink-soft); }
+.developer-account-form input { min-width: 0; padding: 0.55rem; border: 2px solid var(--paper-line); border-radius: 4px; font: inherit; }
+.developer-account-form button { padding: 0.62rem 0.7rem; border: 2px solid var(--ink); border-radius: 4px; background: var(--paper); font: 700 0.72rem var(--font-mono); cursor: pointer; }
+.developer-account-form .developer-delete { border-color: var(--stamp-red-ink); color: var(--stamp-red-ink); }
+.developer-account-form button:hover { background: var(--ink); color: var(--paper); }
+.developer-account-form .developer-delete:hover { background: var(--stamp-red); color: var(--paper); }
+
 .subtitle {
   font-size: 1.02rem;
   color: var(--ink-soft);
