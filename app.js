@@ -3,11 +3,27 @@
 // =============================================================
 let state = { people: [], expenses: [], settlements: [] };
 const STORAGE_KEY = 'payme-local-state';
-const API_BASE = 'https://payme-9w80.onrender.com';
+const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : 'https://payme-9w80.onrender.com';
 const SYNC_INTERVAL_MS = 4000;
 const LOG_PREVIEW_COUNT = 2;
+const SESSION_KEY = 'payme-session-token';
 const syncStatusEl = document.getElementById('sync-status');
-const APP_VERSION = '20260806-2';
+const authScreen = document.getElementById('auth-screen');
+const appShell = document.getElementById('app-shell');
+const authForm = document.getElementById('auth-form');
+const authUsername = document.getElementById('auth-username');
+const authPassword = document.getElementById('auth-password');
+const authRemember = document.getElementById('auth-remember');
+const authPasswordField = document.getElementById('auth-password-field');
+const authError = document.getElementById('auth-error');
+const authSubmit = document.getElementById('auth-submit');
+const authModeToggle = document.getElementById('auth-mode-toggle');
+const forgotPasswordButton = document.getElementById('forgot-password-button');
+const authCopy = document.getElementById('auth-copy');
+const logoutButton = document.getElementById('logout-button');
+let authMode = new URLSearchParams(window.location.search).has('reset') ? 'reset-password' : 'sign-in';
+const resetToken = new URLSearchParams(window.location.search).get('reset') || '';
+const APP_VERSION = '20260807-auth-3';
 
 const DEFAULT_STATE = {
   people: ['Luke', 'Andrew', 'Logan', 'Kai', 'Carson', 'conner'],
@@ -41,10 +57,32 @@ function apiUrl(path) {
   return `${API_BASE}${path}`;
 }
 
+function getSessionToken() {
+  return localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY);
+}
+
+function saveSessionToken(token, remember) {
+  sessionStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(SESSION_KEY);
+  (remember ? localStorage : sessionStorage).setItem(SESSION_KEY, token);
+}
+
+function clearSessionToken() {
+  localStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
+}
+
+function apiFetch(path, options = {}) {
+  const headers = new Headers(options.headers || {});
+  const token = getSessionToken();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  return fetch(apiUrl(path), { ...options, headers });
+}
+
 async function loadState() {
   const localState = loadLocalState();
   try {
-    const response = await fetch(apiUrl('/api/state'));
+    const response = await apiFetch('/api/state');
     if (!response.ok) throw new Error('Failed to load state');
     const data = await response.json();
     const loaded = {
@@ -81,7 +119,8 @@ function getStateSignature(nextState) {
 
 async function syncStateFromServer() {
   try {
-    const response = await fetch(apiUrl('/api/state'));
+    const response = await apiFetch('/api/state');
+    if (response.status === 401) return showAuthScreen();
     if (!response.ok) throw new Error('Could not refresh state');
     const data = await response.json();
     const nextState = normalizeState(data);
@@ -137,7 +176,7 @@ async function initState() {
 
 async function createExpense(expense) {
   try {
-    const response = await fetch(apiUrl('/api/expenses'), {
+    const response = await apiFetch('/api/expenses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(expense),
@@ -152,7 +191,7 @@ async function createExpense(expense) {
 
 async function createSettlement(settlement) {
   try {
-    const response = await fetch(apiUrl('/api/settlements'), {
+    const response = await apiFetch('/api/settlements', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settlement),
@@ -167,7 +206,7 @@ async function createSettlement(settlement) {
 
 async function createPerson(name) {
   try {
-    const response = await fetch(apiUrl('/api/people'), {
+    const response = await apiFetch('/api/people', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
@@ -182,7 +221,7 @@ async function createPerson(name) {
 
 async function deleteExpenseById(id) {
   try {
-    const response = await fetch(apiUrl(`/api/expenses/${id}`), { method: 'DELETE' });
+    const response = await apiFetch(`/api/expenses/${id}`, { method: 'DELETE' });
     if (!response.ok) throw new Error('Could not delete expense');
   } catch (error) {
     console.warn('Expense delete backend unavailable, removing locally.', error);
@@ -192,7 +231,7 @@ async function deleteExpenseById(id) {
 
 async function deleteSettlementById(id) {
   try {
-    const response = await fetch(apiUrl(`/api/settlements/${id}`), { method: 'DELETE' });
+    const response = await apiFetch(`/api/settlements/${id}`, { method: 'DELETE' });
     if (!response.ok) throw new Error('Could not delete payment');
   } catch (error) {
     console.warn('Payment delete backend unavailable, removing locally.', error);
@@ -201,7 +240,7 @@ async function deleteSettlementById(id) {
 }
 
 async function deletePersonByName(name) {
-  const response = await fetch(apiUrl(`/api/people/${encodeURIComponent(name)}`), { method: 'DELETE' });
+  const response = await apiFetch(`/api/people/${encodeURIComponent(name)}`, { method: 'DELETE' });
   if (!response.ok) throw new Error('Could not delete person');
 }
 
@@ -250,11 +289,6 @@ const logExpenseList = document.getElementById('log-expense-list');
 const logExpenseEmpty = document.getElementById('log-expense-empty');
 const logExpenseMore = document.getElementById('log-expense-more');
 const logExpenseSection = document.getElementById('log-expenses-section');
-
-const loginScreen = document.getElementById('login-screen');
-const loginPassword = document.getElementById('login-password');
-const loginSubmit = document.getElementById('login-submit');
-const loginError = document.getElementById('login-error');
 
 let isPaymentLogExpanded = false;
 let isExpenseLogExpanded = false;
@@ -923,6 +957,124 @@ function escapeHtml(str) {
 }
 
 // =============================================================
+// ACCOUNT ACCESS
+// =============================================================
+function setAuthMode(nextMode) {
+  authMode = nextMode;
+  const isSignUp = nextMode === 'sign-up';
+  const isResetRequest = nextMode === 'reset-request';
+  const isResetPassword = nextMode === 'reset-password';
+  authCopy.textContent = isSignUp
+    ? 'Create one of the six house accounts to access the shared ledger.'
+    : isResetRequest
+      ? 'Enter your email and we will send a password-reset link.'
+      : isResetPassword
+        ? 'Choose a new password for your Pay Luke account.'
+        : 'Sign in to view and update the house ledger.';
+  authSubmit.textContent = isSignUp ? 'Create account' : isResetRequest ? 'Send reset link' : isResetPassword ? 'Save new password' : 'Sign in';
+  authModeToggle.textContent = isSignUp ? 'Already have an account? Sign in' : 'Need an account? Sign up';
+  authModeToggle.hidden = isResetRequest || isResetPassword;
+  forgotPasswordButton.hidden = isSignUp || isResetRequest || isResetPassword;
+  authPasswordField.hidden = isResetRequest;
+  authPassword.hidden = isResetRequest;
+  authPassword.required = !isResetRequest;
+  authRemember.closest('label').hidden = isResetRequest || isResetPassword;
+  authPassword.autocomplete = isSignUp || isResetPassword ? 'new-password' : 'current-password';
+  if (isResetPassword) {
+    authUsername.value = new URLSearchParams(window.location.search).get('email') || '';
+    authUsername.readOnly = true;
+  } else {
+    authUsername.readOnly = false;
+  }
+  authError.hidden = true;
+}
+
+function showAuthScreen() {
+  if (syncTimer) clearInterval(syncTimer);
+  syncTimer = null;
+  clearSessionToken();
+  localStorage.removeItem(getStorageKey());
+  appShell.hidden = true;
+  authScreen.hidden = false;
+  authPassword.value = '';
+  authUsername.focus();
+}
+
+function showApp() {
+  authScreen.hidden = true;
+  appShell.hidden = false;
+}
+
+authModeToggle.addEventListener('click', () => setAuthMode(authMode === 'sign-up' ? 'sign-in' : 'sign-up'));
+forgotPasswordButton.addEventListener('click', () => setAuthMode('reset-request'));
+
+authForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  authError.hidden = true;
+  authSubmit.disabled = true;
+  try {
+    const endpoint = authMode === 'sign-up'
+      ? '/api/auth/signup'
+      : authMode === 'reset-request'
+        ? '/api/auth/request-password-reset'
+        : authMode === 'reset-password'
+          ? '/api/auth/reset-password'
+          : '/api/auth/signin';
+    const response = await apiFetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: authUsername.value.trim(), password: authPassword.value, token: resetToken }),
+    });
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new Error('The deployed backend is missing the new login routes. Deploy backend/server.js to Render, then try again.');
+    }
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'Could not sign in.');
+    if (authMode === 'reset-request') {
+      authError.textContent = payload.message;
+      authError.hidden = false;
+      return;
+    }
+    if (authMode === 'reset-password') {
+      history.replaceState({}, '', window.location.pathname);
+      setAuthMode('sign-in');
+      authError.textContent = payload.message;
+      authError.hidden = false;
+      return;
+    }
+    if (!payload.sessionToken) throw new Error('The server did not create a session. Please try again.');
+    saveSessionToken(payload.sessionToken, authRemember.checked);
+    showApp();
+    await initState();
+  } catch (error) {
+    authError.textContent = error.message || 'Could not sign in. Please try again.';
+    authError.hidden = false;
+  } finally {
+    authSubmit.disabled = false;
+  }
+});
+
+logoutButton.addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/auth/logout', { method: 'POST' });
+  } finally {
+    showAuthScreen();
+  }
+});
+
+async function initApp() {
+  try {
+    const response = await apiFetch('/api/auth/me');
+    if (!response.ok) return showAuthScreen();
+    showApp();
+    await initState();
+  } catch (error) {
+    showAuthScreen();
+  }
+}
+
+// =============================================================
 // MAIN RENDER
 // =============================================================
 function renderAll() {
@@ -936,37 +1088,5 @@ function renderAll() {
   renderActivityLog();
 }
 
-function showLoginError(message) {
-  if (!loginError) return;
-  loginError.textContent = message;
-}
-
-function unlockApp() {
-  if (loginScreen) {
-    loginScreen.style.display = 'none';
-  }
-  initState();
-}
-
-function handleLogin() {
-  const password = loginPassword?.value || '';
-  if (password === 'Lukeishot69') {
-    showLoginError('');
-    unlockApp();
-    return;
-  }
-  showLoginError('Wrong password. Try again.');
-  loginPassword?.focus();
-}
-
-loginSubmit?.addEventListener('click', handleLogin);
-loginPassword?.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter') {
-    event.preventDefault();
-    handleLogin();
-  }
-});
-
-if (loginPassword) {
-  loginPassword.focus();
-}
+initApp();
+setAuthMode(authMode);

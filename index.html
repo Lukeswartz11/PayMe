@@ -7,29 +7,40 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,900;1,9..144,600&family=Space+Mono:wght@400;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20260806-2">
+<link rel="stylesheet" href="style.css?v=20260807-auth-3">
 </head>
 <body>
 
-  <div id="login-screen" class="login-screen" aria-modal="true" role="dialog">
-    <div class="login-panel">
-      <h1>Pay Luke</h1>
-      <p class="login-copy">What's the password?</p>
-      <input id="login-password" type="password" placeholder="Enter password" autocomplete="current-password">
-      <button id="login-submit" class="btn btn-red btn-wide" type="button">Unlock</button>
-      <p id="login-error" class="login-error" aria-live="polite"></p>
+  <section id="auth-screen" class="auth-screen" aria-labelledby="auth-title">
+    <div class="auth-card">
+      <p class="eyebrow">Da Crib &middot; Private ledger</p>
+      <h1 id="auth-title" class="title">Pay Luke</h1>
+      <p id="auth-copy" class="auth-copy">Sign in to view and update the house ledger.</p>
+      <form id="auth-form" class="auth-form">
+        <label for="auth-username">Email address</label>
+        <input id="auth-username" name="email" type="email" autocomplete="email" maxlength="254" required>
+        <label id="auth-password-field" for="auth-password">Password</label>
+        <input id="auth-password" name="password" type="password" autocomplete="current-password" minlength="8" required>
+        <label class="auth-remember"><input id="auth-remember" type="checkbox"> Keep me signed in on this device</label>
+        <p id="auth-error" class="auth-error" role="alert" hidden></p>
+        <button id="auth-submit" type="submit" class="btn btn-red btn-wide">Sign in</button>
+      </form>
+      <button id="auth-mode-toggle" type="button" class="auth-toggle">Need an account? Sign up</button>
+      <button id="forgot-password-button" type="button" class="auth-toggle">Forgot password?</button>
+      <p class="auth-note">This house has room for six accounts total.</p>
     </div>
-  </div>
+  </section>
 
-  <div class="desk">
+  <div id="app-shell" class="desk" hidden>
 
     <!-- HEADER -->
     <header class="cover">
       <div class="cover-inner">
         <p class="eyebrow">Da Crib &middot; Payments</p>
         <h1 class="title">Pay Luke</h1>
-        <p class="subtitle">The easy app to remind all you fuckers how much you owe me for utilities each month.</p>
+        <p class="subtitle">The Easy app to remind each fucker how much they owe me for utilities each month.</p>
         <p id="sync-status" class="sync-status">Syncing with shared ledger…</p>
+        <button id="logout-button" type="button" class="logout-button">Sign out</button>
       </div>
       <div class="cover-stamp" aria-hidden="true">
         <svg viewBox="0 0 120 120" class="stamp-ring">
@@ -182,6 +193,8 @@
     </footer>
   </div> -->
 
-<script src="app.js?v=20260806-2"></script>
+  </div>
+
+<script src="app.js?v=20260807-auth-3"></script>
 </body>
 </html>
