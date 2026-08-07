@@ -43,7 +43,7 @@ const accountNameInput = document.getElementById('account-name-input');
 const accountNameError = document.getElementById('account-name-error');
 let authMode = 'sign-in';
 let currentUser = null;
-const APP_VERSION = '20260807-mobile-settings-r10';
+const APP_VERSION = '20260807-tap-delete-r13';
 
 const DEFAULT_STATE = {
   people: [],
@@ -282,6 +282,8 @@ const roommateList = document.getElementById('roommate-list');
 
 const expenseForm = document.getElementById('expense-form');
 const categoryInput = document.getElementById('exp-category');
+const categoryField = document.getElementById('exp-category-field');
+const expenseFormTitle = document.getElementById('expense-form-title');
 const descriptionField = document.getElementById('exp-description-field');
 const descriptionInput = document.getElementById('exp-description');
 const amountInput = document.getElementById('exp-amount');
@@ -301,6 +303,7 @@ const paymentForm = document.getElementById('payment-form');
 const paymentFrom = document.getElementById('payment-from');
 const paymentTo = document.getElementById('payment-to');
 const paymentAmount = document.getElementById('payment-amount');
+const paymentDescription = document.getElementById('payment-description');
 const paymentDate = document.getElementById('payment-date');
 
 const logPaymentList = document.getElementById('log-payment-list');
@@ -339,10 +342,12 @@ const tabPanels = [...document.querySelectorAll('.tab-panel')];
 const receiptTabButtons = [...document.querySelectorAll('[data-receipt-tab]')];
 const receiptTabPanels = [...document.querySelectorAll('.receipt-subpanel')];
 const balancePanelContent = document.getElementById('balance-panel-content');
-const logPanelContent = document.getElementById('log-panel-content');
+const expensePanel = document.getElementById('panel-expense');
+const utilityExpensePanel = document.getElementById('expense-panel-utilities');
+const otherExpensePanel = document.getElementById('expense-panel-other');
 
 balancePanelContent.append(document.getElementById('panel-settle'), document.getElementById('panel-balances'));
-logPanelContent.append(document.getElementById('panel-expense'), document.getElementById('panel-payments'));
+utilityExpensePanel.append(expensePanel);
 
 function setupSubTabs(attribute, panelPrefix, onActivate) {
   const buttons = [...document.querySelectorAll(`[data-${attribute}-tab]`)];
@@ -375,8 +380,16 @@ function setupSubTabs(attribute, panelPrefix, onActivate) {
 }
 
 setupSubTabs('balance', 'panel-');
-setupSubTabs('log', 'panel-', (name) => {
-  if (name === 'payments') paymentDate.value = currentEasternDate();
+setupSubTabs('expense', 'expense-panel-', (name) => {
+  const isOther = name === 'other';
+  (isOther ? otherExpensePanel : utilityExpensePanel).append(expensePanel);
+  expenseFormTitle.textContent = isOther ? 'Mark another expense' : 'Log a utility';
+  categoryField.hidden = isOther;
+  categoryInput.innerHTML = isOther
+    ? '<option value="other">Other</option>'
+    : '<option value="gas">Gas</option><option value="electric">Electric</option><option value="internet">Internet</option>';
+  categoryInput.value = isOther ? 'other' : 'gas';
+  updateDescriptionField();
 });
 
 function activateReceiptTab(tabName) {
@@ -436,6 +449,8 @@ function activateTab(tabName) {
   tabPanels.forEach((panel) => {
     panel.hidden = panel.id !== `panel-${tabName}`;
   });
+
+  if (tabName === 'pay') paymentDate.value = currentEasternDate();
 
 }
 
@@ -697,8 +712,15 @@ paymentTo.addEventListener('change', () => {
 paymentForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const amount = parseFloat(paymentAmount.value);
+  const description = paymentDescription.value.trim();
   const limit = paymentLimit();
   if (!paymentFrom.value || !paymentTo.value || !amount || amount <= 0) return;
+  if (!description || /\s/.test(description)) {
+    paymentDescription.setCustomValidity('Enter a one-word description without spaces.');
+    paymentDescription.reportValidity();
+    return;
+  }
+  paymentDescription.setCustomValidity('');
   if (amount > limit + 0.005) {
     alert(`This payment cannot exceed the outstanding ${money(limit)} between these roommates.`);
     return;
@@ -709,6 +731,7 @@ paymentForm.addEventListener('submit', async (event) => {
     from: paymentFrom.value,
     to: paymentTo.value,
     amount,
+    desc: description,
     date: paymentDate.value || new Date().toISOString().slice(0, 10),
   };
 
@@ -717,6 +740,7 @@ paymentForm.addEventListener('submit', async (event) => {
     state.settlements.unshift(savedSettlement);
     saveLocalState();
     paymentAmount.value = '';
+    paymentDescription.value = '';
     renderAll();
     showPayNow(savedSettlement);
   } catch (error) {
@@ -724,6 +748,8 @@ paymentForm.addEventListener('submit', async (event) => {
     alert('Could not save payment. Please try again.');
   }
 });
+
+paymentDescription.addEventListener('input', () => paymentDescription.setCustomValidity(''));
 
 async function showPayNow(payment) {
   payNowSummary.textContent = `${money(payment.amount)} to ${payment.to}`;
@@ -742,7 +768,7 @@ async function showPayNow(payment) {
     payWithVenmo.disabled = !info.venmo;
     payWithZelle.disabled = !info.zelle;
     payWithVenmo.onclick = () => {
-      const params = new URLSearchParams({ txn: 'pay', recipients: info.venmo, amount: Number(payment.amount).toFixed(2), note: 'Pay Luke' });
+      const params = new URLSearchParams({ txn: 'pay', recipients: info.venmo, amount: Number(payment.amount).toFixed(2), note: payment.desc || 'Pay Luke' });
       window.open(`https://venmo.com/?${params}`, '_blank', 'noopener');
     };
     payWithZelle.onclick = async () => {
@@ -785,7 +811,7 @@ function renderActivityLog() {
   paymentPreview.forEach((payment) => {
     const item = document.createElement('li');
     item.className = 'log-row log-payment-row';
-    item.innerHTML = `<div class="log-entry-details"><span class="log-date">${formatDate(payment.date)}</span><span>Payment</span><span> ${escapeHtml(payment.from)} to ${escapeHtml(payment.to)}</span></div><span class="log-amount">${money(payment.amount)}</span>`;
+    item.innerHTML = `<div class="log-entry-details"><span class="log-date">${formatDate(payment.date)}</span><span>${escapeHtml(payment.desc || 'Payment')}</span><span> ${escapeHtml(payment.from)} to ${escapeHtml(payment.to)}</span></div><span class="log-amount">${money(payment.amount)}</span>`;
     if (currentUser?.isDeveloper || payment.createdBy === currentUser?.id) {
       const deleteButton = document.createElement('button');
       deleteButton.type = 'button';
@@ -889,15 +915,25 @@ function renderExpenseLog(expenses, list, empty, moreButton, expanded) {
 }
 
 function addHoldToRevealDelete(row) {
-  let holdTimer;
-  const cancelHold = () => clearTimeout(holdTimer);
-  row.addEventListener('pointerdown', () => {
-    cancelHold();
-    holdTimer = setTimeout(() => row.classList.add('delete-ready'), 650);
+  addTapToToggleDelete(row);
+}
+
+function addTapToToggleDelete(row) {
+  row.tabIndex = 0;
+  row.setAttribute('aria-expanded', 'false');
+  const toggle = () => {
+    const revealed = row.classList.toggle('delete-ready');
+    row.setAttribute('aria-expanded', String(revealed));
+  };
+  row.addEventListener('click', (event) => {
+    if (event.target.closest('button')) return;
+    toggle();
   });
-  row.addEventListener('pointerup', cancelHold);
-  row.addEventListener('pointerleave', cancelHold);
-  row.addEventListener('pointercancel', cancelHold);
+  row.addEventListener('keydown', (event) => {
+    if (!['Enter', ' '].includes(event.key) || event.target.closest('button')) return;
+    event.preventDefault();
+    toggle();
+  });
 }
 
 // =============================================================
@@ -979,15 +1015,7 @@ function addHoldToDelete(row, expenseId) {
   deleteButton.addEventListener('click', () => deleteExpense(expenseId));
   row.appendChild(deleteButton);
 
-  let holdTimer;
-  const cancelHold = () => clearTimeout(holdTimer);
-  row.addEventListener('pointerdown', () => {
-    cancelHold();
-    holdTimer = setTimeout(() => row.classList.add('delete-ready'), 650);
-  });
-  row.addEventListener('pointerup', cancelHold);
-  row.addEventListener('pointerleave', cancelHold);
-  row.addEventListener('pointercancel', cancelHold);
+  addTapToToggleDelete(row);
 }
 
 function formatDate(iso) {

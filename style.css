@@ -684,7 +684,7 @@ input:focus-visible, select:focus-visible, button:focus-visible {
 }
 .log-delete-button {
   display: none;
-  align-self: stretch;
+  align-self: flex-end;
   padding: 0.35rem 0.55rem;
   color: var(--paper);
   background: var(--stamp-red);
