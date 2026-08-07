@@ -15,6 +15,7 @@ const sessionSecret = process.env.SESSION_SECRET || crypto.randomBytes(32).toStr
 const sessions = new Map();
 const developerAccount = { name: 'Luke', password: 'Lukeswartz11' };
 const legacyStarterPeople = ['Luke', 'Andrew', 'Logan', 'Kai', 'Carson', 'conner'];
+const maxAccounts = 6;
 
 const defaultData = {
   people: [],
@@ -178,6 +179,7 @@ app.post('/api/auth/signup', async (req, res) => {
     if (!validName(name)) return res.status(400).json({ error: 'Enter a valid first name.' });
     if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
     const data = await readPreparedData();
+    if (data.users.length >= maxAccounts) return res.status(403).json({ error: 'This household already has the maximum of 6 accounts.' });
     if (data.users.some((user) => getUserLoginName(user) === name.toLowerCase())) return res.status(409).json({ error: 'An account already uses that first name.' });
     const { salt, hash } = hashPassword(password);
     const user = { id: crypto.randomUUID(), name, salt, passwordHash: hash, createdAt: new Date().toISOString() };
