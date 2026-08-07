@@ -29,6 +29,7 @@ const developerMenuError = document.getElementById('developer-menu-error');
 const notificationButton = document.getElementById('notification-button');
 const zelleInfoButton = document.getElementById('zelle-info-button');
 const venmoInfoButton = document.getElementById('venmo-info-button');
+const bankInfoButton = document.getElementById('bank-info-button');
 const payNowMenu = document.getElementById('pay-now-menu');
 const payNowClose = document.getElementById('pay-now-close');
 const payNowSummary = document.getElementById('pay-now-summary');
@@ -43,7 +44,7 @@ const accountNameInput = document.getElementById('account-name-input');
 const accountNameError = document.getElementById('account-name-error');
 let authMode = 'sign-in';
 let currentUser = null;
-const APP_VERSION = '20260807-tap-delete-r13';
+const APP_VERSION = '20260807-huntington-r15';
 
 const DEFAULT_STATE = {
   people: [],
@@ -773,11 +774,18 @@ async function showPayNow(payment) {
     };
     payWithZelle.onclick = async () => {
       const details = `${info.zelle} — ${money(payment.amount)}`;
+      const bankUrl = currentUser?.bank === 'huntington'
+        ? 'https://www.huntington.com/mobile-login'
+        : 'https://enroll.zellepay.com/mobile';
+      const bankInstruction = currentUser?.bank === 'huntington'
+        ? 'Huntington opened. Go to Pay & Transfer, then Zelle, to finish the payment.'
+        : 'Select your bank on the page that opened, then continue to its app to finish the payment.';
+      window.open(bankUrl, '_blank', 'noopener');
       try {
         await navigator.clipboard.writeText(details);
-        payNowNote.textContent = `Copied ${details}. Open your banking app and select Zelle to finish the payment.`;
+        payNowNote.textContent = `Copied ${details}. ${bankInstruction}`;
       } catch (error) {
-        payNowNote.textContent = `Use ${info.zelle} in your banking app and send ${money(payment.amount)} with Zelle.`;
+        payNowNote.textContent = `Use ${info.zelle} and send ${money(payment.amount)}. ${bankInstruction}`;
       }
     };
     payNowNote.textContent = info.venmo || info.zelle
@@ -1224,6 +1232,7 @@ notificationButton.addEventListener('click', enablePhoneAlerts);
 function updatePaymentInfoButtons() {
   zelleInfoButton.textContent = currentUser?.zelle ? 'Update Zelle information' : 'Add Zelle information';
   venmoInfoButton.textContent = currentUser?.venmo ? 'Update Venmo information' : 'Add Venmo information';
+  bankInfoButton.textContent = currentUser?.bank === 'huntington' ? 'Huntington selected' : 'Use Huntington';
 }
 
 async function savePaymentInfo(type) {
@@ -1253,6 +1262,23 @@ async function savePaymentInfo(type) {
 
 zelleInfoButton.addEventListener('click', () => savePaymentInfo('zelle'));
 venmoInfoButton.addEventListener('click', () => savePaymentInfo('venmo'));
+bankInfoButton.addEventListener('click', async () => {
+  try {
+    const response = await apiFetch('/api/auth/payment-info', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'bank', value: 'huntington' }),
+    });
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) throw new Error('Deploy the latest backend to Render, then try again.');
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'Could not save banking app.');
+    currentUser = { ...currentUser, ...payload };
+    updatePaymentInfoButtons();
+  } catch (error) {
+    alert(error.message || 'Could not save banking app.');
+  }
+});
 
 function openSettingsMenu() {
   accountNameInput.value = currentUser?.name || '';

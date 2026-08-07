@@ -251,6 +251,10 @@
         <div class="settings-row-copy"><h3>Venmo information</h3><p>Add your Venmo username so payments can open prefilled.</p></div>
         <button id="venmo-info-button" class="settings-action-button" type="button">Add Venmo information</button>
       </div>
+      <div class="settings-row">
+        <div class="settings-row-copy"><h3>Banking app</h3><p>Use Huntington when opening Zelle payments.</p></div>
+        <button id="bank-info-button" class="settings-action-button" type="button">Use Huntington</button>
+      </div>
       <div id="developer-settings-row" class="settings-row" hidden><div class="settings-row-copy"><h3>Developer tools</h3><p>Manage the accounts that can use this ledger.</p></div><button id="developer-menu-button" class="settings-action-button" type="button">Developer menu</button></div>
       <div class="settings-row settings-signout"><div class="settings-row-copy"><h3>Sign out</h3><p>End your session on this device.</p></div><button id="logout-button" type="button" class="settings-action-button settings-danger-button">Sign out</button></div>
     </div>
@@ -262,7 +266,7 @@
       <p id="pay-now-summary" class="developer-menu-note"></p>
       <div class="pay-now-actions">
         <button id="pay-with-venmo" class="settings-action-button" type="button">Open Venmo</button>
-        <button id="pay-with-zelle" class="settings-action-button" type="button">Copy for Zelle</button>
+        <button id="pay-with-zelle" class="settings-action-button" type="button">Open bank for Zelle</button>
       </div>
       <p id="pay-now-note" class="settings-payment-note"></p>
     </div>
@@ -283,6 +287,6 @@
     </div>
   </section>
 
-<script src="app.js?v=20260807-tap-delete-r13"></script>
+<script src="app.js?v=20260807-huntington-r15"></script>
 </body>
 </html>
