@@ -994,14 +994,18 @@ function showAuthScreen() {
   syncTimer = null;
   clearSessionToken();
   localStorage.removeItem(getStorageKey());
+  document.body.classList.remove('is-authenticated');
   appShell.hidden = true;
   authScreen.hidden = false;
+  authScreen.style.display = 'grid';
   authPassword.value = '';
   authUsername.focus();
 }
 
 function showApp() {
+  document.body.classList.add('is-authenticated');
   authScreen.hidden = true;
+  authScreen.style.display = 'none';
   appShell.hidden = false;
 }
 
