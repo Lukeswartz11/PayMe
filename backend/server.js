@@ -263,6 +263,7 @@ app.delete('/api/developer/accounts/:id', requireAuth, requireDeveloper, async (
     if (!user) return res.status(404).json({ error: 'Account not found.' });
     if (user.isDeveloper) return res.status(403).json({ error: 'The developer account cannot be deleted.' });
     data.users = data.users.filter((candidate) => candidate.id !== user.id);
+    data.people = data.people.filter((person) => person !== user.name);
     for (const [token, session] of sessions) if (session.userId === user.id) sessions.delete(token);
     await writeData(data);
     res.status(204).end();

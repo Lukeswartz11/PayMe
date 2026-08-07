@@ -704,9 +704,17 @@ function addHoldToRevealDelete(row) {
 // =============================================================
 // RENDER EXPENSE LIST
 // =============================================================
+function isActiveExpense(expense) {
+  return state.people.includes(expense.paidBy) && Array.isArray(expense.splitAmong) && expense.splitAmong.every((person) => state.people.includes(person));
+}
+
+function isActiveSettlement(settlement) {
+  return state.people.includes(settlement.from) && state.people.includes(settlement.to);
+}
+
 function renderExpenses() {
   expenseListEl.innerHTML = '';
-  const utilityExpenses = state.expenses.filter((expense) => ['gas', 'electric', 'internet'].includes(expenseCategory(expense)));
+  const utilityExpenses = state.expenses.filter((expense) => isActiveExpense(expense) && ['gas', 'electric', 'internet'].includes(expenseCategory(expense)));
   expenseEmpty.style.display = utilityExpenses.length ? 'none' : 'block';
   return renderReceiptMonths(utilityExpenses);
 }
@@ -797,7 +805,7 @@ function computeBalances() {
   const balance = {};
   state.people.forEach((p) => (balance[p] = 0));
 
-  state.expenses.forEach((x) => {
+  state.expenses.filter(isActiveExpense).forEach((x) => {
     if (!(x.paidBy in balance)) balance[x.paidBy] = 0;
     balance[x.paidBy] += x.amount;
     const share = x.amount / x.splitAmong.length;
@@ -807,7 +815,7 @@ function computeBalances() {
     });
   });
 
-  state.settlements.forEach((s) => {
+  state.settlements.filter(isActiveSettlement).forEach((s) => {
     if (!(s.from in balance)) balance[s.from] = 0;
     if (!(s.to in balance)) balance[s.to] = 0;
     balance[s.from] += s.amount; // paying off debt improves their balance
@@ -832,6 +840,7 @@ function daysBetween(startValue, endValue) {
 
 function computeMostRecentExpenseDate() {
   const expenseDates = state.expenses
+    .filter(isActiveExpense)
     .map((expense) => expense.date)
     .filter(Boolean)
     .map((date) => parseDateValue(date))
@@ -852,7 +861,7 @@ function computeCreditScores() {
   if (!latestExpenseDate) return scores;
 
   const paymentsToLuke = [...state.settlements]
-    .filter((settlement) => settlement.to === 'Luke' && state.people.includes(settlement.from))
+    .filter((settlement) => isActiveSettlement(settlement) && settlement.to === 'Luke')
     .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
   paymentsToLuke.forEach((settlement) => {
@@ -1005,7 +1014,7 @@ function renderDeveloperAccounts(accounts) {
       } catch (error) { showDeveloperError(error.message); } finally { saveButton.disabled = false; }
     });
     deleteButton.addEventListener('click', async () => {
-      if (!confirm(`Delete ${account.name}'s login account? Their ledger history will remain.`)) return;
+      if (!confirm(`Delete ${account.name}'s account? They will be removed from active ledger views, but their name will remain in transaction history.`)) return;
       showDeveloperError();
       deleteButton.disabled = true;
       try {
@@ -1015,6 +1024,7 @@ function renderDeveloperAccounts(accounts) {
           throw new Error(payload.error || 'Could not delete account.');
         }
         await openDeveloperMenu();
+        await syncStateFromServer();
       } catch (error) { showDeveloperError(error.message); } finally { deleteButton.disabled = false; }
     });
     card.appendChild(form);
