@@ -13,6 +13,8 @@ const appShell = document.getElementById('app-shell');
 const authForm = document.getElementById('auth-form');
 const authUsername = document.getElementById('auth-username');
 const authPassword = document.getElementById('auth-password');
+const authName = document.getElementById('auth-name');
+const authNameField = document.getElementById('auth-name-field');
 const authRemember = document.getElementById('auth-remember');
 const authPasswordField = document.getElementById('auth-password-field');
 const authError = document.getElementById('auth-error');
@@ -23,10 +25,10 @@ const authCopy = document.getElementById('auth-copy');
 const logoutButton = document.getElementById('logout-button');
 let authMode = new URLSearchParams(window.location.search).has('reset') ? 'reset-password' : 'sign-in';
 const resetToken = new URLSearchParams(window.location.search).get('reset') || '';
-const APP_VERSION = '20260807-auth-3';
+const APP_VERSION = '20260807-people';
 
 const DEFAULT_STATE = {
-  people: ['Luke', 'Andrew', 'Logan', 'Kai', 'Carson', 'conner'],
+  people: [],
   expenses: [],
   settlements: [],
 };
@@ -978,6 +980,9 @@ function setAuthMode(nextMode) {
   authPasswordField.hidden = isResetRequest;
   authPassword.hidden = isResetRequest;
   authPassword.required = !isResetRequest;
+  authNameField.hidden = !isSignUp;
+  authName.hidden = !isSignUp;
+  authName.required = isSignUp;
   authRemember.closest('label').hidden = isResetRequest || isResetPassword;
   authPassword.autocomplete = isSignUp || isResetPassword ? 'new-password' : 'current-password';
   if (isResetPassword) {
@@ -1027,7 +1032,7 @@ authForm.addEventListener('submit', async (event) => {
     const response = await apiFetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: authUsername.value.trim(), password: authPassword.value, token: resetToken }),
+      body: JSON.stringify({ email: authUsername.value.trim(), name: authName.value.trim(), password: authPassword.value, token: resetToken }),
     });
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {

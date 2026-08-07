@@ -16,10 +16,11 @@ const resendApiKey = process.env.RESEND_API_KEY;
 const emailFrom = process.env.EMAIL_FROM;
 const publicAppUrl = process.env.PUBLIC_APP_URL;
 const sessions = new Map();
-const MAX_ACCOUNTS = 6;
+const developerAccount = { email: 'lukeswartz11@gmail.com', name: 'Luke', password: 'Lukeswartz11' };
+const legacyStarterPeople = ['Luke', 'Andrew', 'Logan', 'Kai', 'Carson', 'conner'];
 
 const defaultData = {
-  people: ['Luke', 'Andrew', 'Logan', 'Kai', 'Carson', 'conner'],
+  people: [],
   expenses: [],
   settlements: [],
   users: [],
@@ -84,6 +85,31 @@ function validPassword(password, user) {
 
 function getUserEmail(user) {
   return String(user.email || user.username || '').toLowerCase();
+}
+
+function prepareHousehold(data) {
+  let changed = false;
+  const isUntouchedLegacyHousehold = data.people.length === legacyStarterPeople.length && legacyStarterPeople.every((person, index) => data.people[index] === person) && data.expenses.length === 0 && data.settlements.length === 0;
+  if (isUntouchedLegacyHousehold) {
+    data.people = [];
+    changed = true;
+  }
+  if (!data.users.some((user) => getUserEmail(user) === developerAccount.email)) {
+    const { salt, hash } = hashPassword(developerAccount.password);
+    data.users.push({ id: crypto.randomUUID(), email: developerAccount.email, name: developerAccount.name, salt, passwordHash: hash, createdAt: new Date().toISOString() });
+    changed = true;
+  }
+  if (!data.people.some((person) => person.toLowerCase() === developerAccount.name.toLowerCase())) {
+    data.people.push(developerAccount.name);
+    changed = true;
+  }
+  return changed;
+}
+
+async function readPreparedData() {
+  const data = await readData();
+  if (prepareHousehold(data)) await writeData(data);
+  return data;
 }
 
 function removeUserSessions(userId) {
@@ -154,18 +180,20 @@ async function writeData(data) {
 app.post('/api/auth/signup', async (req, res) => {
   try {
     const email = String(req.body?.email || '').trim().toLowerCase();
+    const name = String(req.body?.name || '').trim();
     const password = String(req.body?.password || '');
     if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: 'Enter a valid email address.' });
+    if (!/^[a-zA-Z][a-zA-Z '-]{0,30}$/.test(name)) return res.status(400).json({ error: 'Enter a valid first name.' });
     if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
-    const data = await readData();
-    if (data.users.length >= MAX_ACCOUNTS) return res.status(403).json({ error: 'All six house accounts have already been created.' });
+    const data = await readPreparedData();
     if (data.users.some((user) => getUserEmail(user) === email)) return res.status(409).json({ error: 'An account already uses that email address.' });
     const { salt, hash } = hashPassword(password);
-    const user = { id: crypto.randomUUID(), email, salt, passwordHash: hash, createdAt: new Date().toISOString() };
+    const user = { id: crypto.randomUUID(), email, name, salt, passwordHash: hash, createdAt: new Date().toISOString() };
     data.users.push(user);
+    if (!data.people.some((person) => person.toLowerCase() === name.toLowerCase())) data.people.push(name);
     await writeData(data);
     const sessionToken = createSession(user, res);
-    res.status(201).json({ user: { email: user.email }, sessionToken, accountsRemaining: MAX_ACCOUNTS - data.users.length });
+    res.status(201).json({ user: { email: user.email, name: user.name }, sessionToken });
   } catch (error) {
     console.error('POST /api/auth/signup error:', error);
     res.status(500).json({ error: 'Could not create account.' });
@@ -176,11 +204,11 @@ app.post('/api/auth/signin', async (req, res) => {
   try {
     const email = String(req.body?.email || '').trim().toLowerCase();
     const password = String(req.body?.password || '');
-    const data = await readData();
+    const data = await readPreparedData();
     const user = data.users.find((candidate) => getUserEmail(candidate) === email);
     if (!user || !validPassword(password, user)) return res.status(401).json({ error: 'Incorrect email or password.' });
     const sessionToken = createSession(user, res);
-    res.json({ user: { email: getUserEmail(user) }, sessionToken });
+    res.json({ user: { email: getUserEmail(user), name: user.name || '' }, sessionToken });
   } catch (error) {
     console.error('POST /api/auth/signin error:', error);
     res.status(500).json({ error: 'Could not sign in.' });
@@ -188,10 +216,10 @@ app.post('/api/auth/signin', async (req, res) => {
 });
 
 app.get('/api/auth/me', requireAuth, async (req, res) => {
-  const data = await readData();
+  const data = await readPreparedData();
   const user = data.users.find((candidate) => candidate.id === req.userId);
   if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
-  res.json({ user: { email: getUserEmail(user) } });
+  res.json({ user: { email: getUserEmail(user), name: user.name || '' } });
 });
 
 app.post('/api/auth/request-password-reset', async (req, res) => {
