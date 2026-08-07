@@ -14,4 +14,15 @@ VAPID_PRIVATE_KEY=<private VAPID key>
 REMINDER_CRON_SECRET=<long random secret>
 ```
 
+## Persistent ledger storage
+
+Render's local filesystem is temporary, so use Firebase Realtime Database for the shared ledger. In Firebase, create a Realtime Database and generate a service-account private key in **Project settings → Service accounts**. Add these Render environment variables:
+
+```text
+FIREBASE_DATABASE_URL=https://<your-database>.firebaseio.com
+FIREBASE_SERVICE_ACCOUNT_JSON=<the complete service-account JSON file, on one line>
+```
+
+The backend authenticates directly with this service account. Keep Firebase's database rules locked down and never commit the service-account JSON to the repository. When these variables are set, every ledger write goes to Firebase, so future Render deploys use the same transaction history.
+
 Generate the VAPID key pair once from `backend/` with `npx web-push generate-vapid-keys --json`. The app checks reminders every 15 minutes while the server is running. For hosts that sleep inactive web services, schedule a request at least every 15 minutes to `POST /api/push/reminders/run` with header `x-reminder-secret: <REMINDER_CRON_SECRET>` so reminders are not delayed.

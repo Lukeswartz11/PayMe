@@ -12,6 +12,7 @@ const port = process.env.PORT || 3000;
 const dataPath = path.resolve(__dirname, 'data.json');
 const publicRoot = path.resolve(__dirname, '..');
 const firebaseDbUrl = process.env.FIREBASE_DATABASE_URL?.replace(/\/$/, '');
+const firebaseServiceAccountRaw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '';
 const sessionSecret = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || '';
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '';
@@ -20,6 +21,64 @@ const sessions = new Map();
 const developerAccount = { name: 'Luke', password: 'Lukeswartz11' };
 const legacyStarterPeople = ['Luke', 'Andrew', 'Logan', 'Kai', 'Carson', 'conner'];
 const maxAccounts = 6;
+let firebaseAccessToken = null;
+let firebaseAccessTokenExpiresAt = 0;
+
+function getFirebaseServiceAccount() {
+  if (!firebaseDbUrl) return null;
+  if (!firebaseServiceAccountRaw) throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON is required when FIREBASE_DATABASE_URL is set.');
+  try {
+    const serviceAccount = JSON.parse(firebaseServiceAccountRaw);
+    if (!serviceAccount.client_email || !serviceAccount.private_key) throw new Error('Missing client_email or private_key.');
+    return serviceAccount;
+  } catch (error) {
+    throw new Error(`FIREBASE_SERVICE_ACCOUNT_JSON is invalid: ${error.message}`);
+  }
+}
+
+const firebaseServiceAccount = getFirebaseServiceAccount();
+
+function base64Url(value) {
+  return Buffer.from(value).toString('base64url');
+}
+
+async function getFirebaseAccessToken() {
+  if (!firebaseServiceAccount) return null;
+  if (firebaseAccessToken && Date.now() < firebaseAccessTokenExpiresAt) return firebaseAccessToken;
+
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64Url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const claim = base64Url(JSON.stringify({
+    iss: firebaseServiceAccount.client_email,
+    scope: 'https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/userinfo.email',
+    aud: firebaseServiceAccount.token_uri || 'https://oauth2.googleapis.com/token',
+    iat: now,
+    exp: now + 3600,
+  }));
+  const unsignedToken = `${header}.${claim}`;
+  const signature = crypto.createSign('RSA-SHA256').update(unsignedToken).end().sign(firebaseServiceAccount.private_key, 'base64url');
+  const response = await fetch(firebaseServiceAccount.token_uri || 'https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: `${unsignedToken}.${signature}`,
+    }),
+  });
+  const payload = await response.json();
+  if (!response.ok || !payload.access_token) throw new Error(payload.error_description || payload.error || 'Could not authenticate with Firebase.');
+  firebaseAccessToken = payload.access_token;
+  firebaseAccessTokenExpiresAt = Date.now() + Math.max(60, Number(payload.expires_in || 3600) - 60) * 1000;
+  return firebaseAccessToken;
+}
+
+async function firebaseFetch(pathname, options = {}) {
+  const token = await getFirebaseAccessToken();
+  return fetch(`${firebaseDbUrl}${pathname}`, {
+    ...options,
+    headers: { ...options.headers, Authorization: `Bearer ${token}` },
+  });
+}
 
 if (vapidPublicKey && vapidPrivateKey) {
   webpush.setVapidDetails('mailto:admin@payluke.app', vapidPublicKey, vapidPrivateKey);
@@ -38,15 +97,11 @@ app.use(express.static(publicRoot));
 
 async function readData() {
   if (firebaseDbUrl) {
-    try {
-      const response = await fetch(`${firebaseDbUrl}/state.json`);
-      if (!response.ok) throw new Error(`Firebase read failed: ${response.status}`);
-      const value = await response.text();
-      if (!value || value === 'null') return defaultData;
-      return normalizeData(JSON.parse(value));
-    } catch (error) {
-      console.error('Failed to read Firebase data:', error);
-    }
+    const response = await firebaseFetch('/state.json');
+    if (!response.ok) throw new Error(`Firebase read failed: ${response.status}`);
+    const value = await response.text();
+    if (!value || value === 'null') return defaultData;
+    return normalizeData(JSON.parse(value));
   }
 
   try {
@@ -207,7 +262,7 @@ async function requireDeveloper(request, response, next) {
 
 async function writeData(data) {
   if (firebaseDbUrl) {
-    const response = await fetch(`${firebaseDbUrl}/state.json`, {
+    const response = await firebaseFetch('/state.json', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
