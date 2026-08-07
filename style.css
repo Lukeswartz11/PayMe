@@ -221,6 +221,7 @@ body :where(h1, h2, h3, p, span, label, legend, li, button, input, select) {
 }
 
 .title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.header-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.45rem; }
 .developer-menu-button { margin-top: 0.4rem; padding: 0.5rem 0.7rem; border: 2px solid var(--stamp-red-ink); border-radius: 4px; background: var(--paper); color: var(--stamp-red-ink); font: 700 0.68rem var(--font-mono); text-transform: uppercase; cursor: pointer; }
 .developer-menu-button:hover { background: var(--stamp-red); color: var(--paper); }
 .developer-menu { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 1.5rem; background: rgba(36, 36, 36, 0.55); }

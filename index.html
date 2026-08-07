@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#a7271a">
+<link rel="manifest" href="/manifest.webmanifest">
 <title>Pay Luke — Split the Bills</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -37,7 +39,10 @@
         <p class="eyebrow">Da Crib &middot; Payments</p>
         <div class="title-row">
           <h1 class="title">Pay Luke</h1>
-          <button id="developer-menu-button" class="developer-menu-button" type="button" hidden>Developer menu</button>
+          <div class="header-actions">
+            <button id="notification-button" class="developer-menu-button" type="button" hidden>Enable phone alerts</button>
+            <button id="developer-menu-button" class="developer-menu-button" type="button" hidden>Developer menu</button>
+          </div>
         </div>
         <p class="subtitle">The Easy app to remind each fucker how much they owe me for utilities each month.</p>
         <p id="sync-status" class="sync-status">Syncing with shared ledger…</p>

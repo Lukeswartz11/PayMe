@@ -1,0 +1,16 @@
+{
+  "name": "Pay Luke",
+  "short_name": "Pay Luke",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5eedb",
+  "theme_color": "#a7271a",
+  "icons": [
+    {
+      "src": "/Brutus_Front.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

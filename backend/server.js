@@ -3,6 +3,7 @@ import cors from 'cors';
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
+import webpush from 'web-push';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -12,10 +13,17 @@ const dataPath = path.resolve(__dirname, 'data.json');
 const publicRoot = path.resolve(__dirname, '..');
 const firebaseDbUrl = process.env.FIREBASE_DATABASE_URL?.replace(/\/$/, '');
 const sessionSecret = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || '';
+const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '';
+const reminderCronSecret = process.env.REMINDER_CRON_SECRET || '';
 const sessions = new Map();
 const developerAccount = { name: 'Luke', password: 'Lukeswartz11' };
 const legacyStarterPeople = ['Luke', 'Andrew', 'Logan', 'Kai', 'Carson', 'conner'];
 const maxAccounts = 6;
+
+if (vapidPublicKey && vapidPrivateKey) {
+  webpush.setVapidDetails('mailto:admin@payluke.app', vapidPublicKey, vapidPrivateKey);
+}
 
 const defaultData = {
   people: [],
@@ -87,6 +95,45 @@ function getUserLoginName(user) {
 
 function validName(name) {
   return /^[a-zA-Z][a-zA-Z '-]{0,30}$/.test(name);
+}
+
+function pushIsConfigured() {
+  return Boolean(vapidPublicKey && vapidPrivateKey);
+}
+
+async function sendPushToUser(user, payload) {
+  if (!pushIsConfigured() || !Array.isArray(user.pushSubscriptions)) return false;
+  let changed = false;
+  const activeSubscriptions = [];
+  for (const subscription of user.pushSubscriptions) {
+    try {
+      await webpush.sendNotification(subscription, JSON.stringify(payload));
+      activeSubscriptions.push(subscription);
+    } catch (error) {
+      if (error.statusCode !== 404 && error.statusCode !== 410) activeSubscriptions.push(subscription);
+      else changed = true;
+      console.warn('Push delivery failed:', error.statusCode || error.message);
+    }
+  }
+  if (changed) user.pushSubscriptions = activeSubscriptions;
+  return changed;
+}
+
+function expenseReminderRecipients(data, expense) {
+  const splitAmong = Array.isArray(expense.splitAmong) ? expense.splitAmong : [];
+  const share = splitAmong.length ? expense.amount / splitAmong.length : 0;
+  return splitAmong
+    .filter((name) => name !== expense.paidBy)
+    .map((name) => data.users.find((user) => user.name === name))
+    .filter(Boolean)
+    .map((user) => ({ userId: user.id, name: user.name, amount: share, dueAt: Date.now() + 24 * 60 * 60 * 1000, reminderSentAt: null }));
+}
+
+function paymentAmountSince(data, reminder, expense) {
+  const createdAt = new Date(expense.createdAt || 0).getTime();
+  return data.settlements
+    .filter((payment) => payment.from === reminder.name && payment.to === expense.paidBy && new Date(payment.createdAt || 0).getTime() >= createdAt)
+    .reduce((total, payment) => total + Number(payment.amount || 0), 0);
 }
 
 function prepareHousehold(data) {
@@ -284,6 +331,56 @@ app.post('/api/auth/logout', requireAuth, (req, res) => {
   res.status(204).end();
 });
 
+app.get('/api/push/public-key', requireAuth, (req, res) => {
+  if (!pushIsConfigured()) return res.status(503).json({ error: 'Phone notifications have not been configured yet.' });
+  res.json({ publicKey: vapidPublicKey });
+});
+
+app.post('/api/push/subscribe', requireAuth, async (req, res) => {
+  try {
+    if (!pushIsConfigured()) return res.status(503).json({ error: 'Phone notifications have not been configured yet.' });
+    const subscription = req.body?.subscription;
+    if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) return res.status(400).json({ error: 'Invalid phone notification subscription.' });
+    const data = await readPreparedData();
+    const user = data.users.find((candidate) => candidate.id === req.userId);
+    if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
+    const subscriptions = Array.isArray(user.pushSubscriptions) ? user.pushSubscriptions : [];
+    user.pushSubscriptions = [...subscriptions.filter((candidate) => candidate.endpoint !== subscription.endpoint), subscription];
+    await writeData(data);
+    res.status(201).json({ subscribed: true });
+  } catch (error) {
+    console.error('POST /api/push/subscribe error:', error);
+    res.status(500).json({ error: 'Could not enable phone notifications.' });
+  }
+});
+
+async function sendDueReminders() {
+  const data = await readPreparedData();
+  let changed = false;
+  for (const expense of data.expenses) {
+    for (const reminder of expense.reminders || []) {
+      const remaining = Math.max(0, Number(reminder.amount) - paymentAmountSince(data, reminder, expense));
+      if (reminder.reminderSentAt || reminder.dueAt > Date.now() || remaining < 0.005) continue;
+      const user = data.users.find((candidate) => candidate.id === reminder.userId);
+      if (user) await sendPushToUser(user, { title: 'Payment reminder', body: `You still owe ${expense.paidBy} $${remaining.toFixed(2)}. Please pay them or log your payment in Pay Luke.`, url: '/', tag: `payment-reminder-${expense.id}` });
+      reminder.reminderSentAt = new Date().toISOString();
+      changed = true;
+    }
+  }
+  if (changed) await writeData(data);
+}
+
+app.post('/api/push/reminders/run', async (req, res) => {
+  if (!reminderCronSecret || req.get('x-reminder-secret') !== reminderCronSecret) return res.status(401).json({ error: 'Unauthorized reminder job.' });
+  try {
+    await sendDueReminders();
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('POST /api/push/reminders/run error:', error);
+    res.status(500).json({ error: 'Could not send payment reminders.' });
+  }
+});
+
 app.get('/api/state', requireAuth, async (req, res) => {
   try {
     const data = await readData();
@@ -305,8 +402,14 @@ app.post('/api/expenses', requireAuth, async (req, res) => {
     if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
     if (!user.isDeveloper) expense.paidBy = user.name;
     expense.createdBy = user.id;
+    expense.createdAt = new Date().toISOString();
+    expense.reminders = expenseReminderRecipients(data, expense);
     data.expenses.unshift(expense);
     await writeData(data);
+    for (const reminder of expense.reminders) {
+      const recipient = data.users.find((candidate) => candidate.id === reminder.userId);
+      if (recipient) await sendPushToUser(recipient, { title: 'New shared expense', body: `${expense.paidBy} paid $${Number(expense.amount).toFixed(2)}. You owe $${Number(reminder.amount).toFixed(2)} to ${expense.paidBy}.`, url: '/', tag: `expense-${expense.id}` });
+    }
     res.status(201).json(expense);
   } catch (error) {
     res.status(500).json({ error: 'Could not save expense.' });
@@ -324,6 +427,7 @@ app.post('/api/settlements', requireAuth, async (req, res) => {
     if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
     if (!user.isDeveloper) payment.from = user.name;
     payment.createdBy = user.id;
+    payment.createdAt = new Date().toISOString();
     data.settlements.unshift(payment);
     await writeData(data);
     res.status(201).json(payment);
@@ -392,6 +496,10 @@ app.delete('/api/people/:name', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Could not delete person.' });
   }
 });
+
+// Checks every 15 minutes so each reminder is sent shortly after its 24-hour due time.
+// The protected endpoint above also supports an external scheduler for hosts that sleep.
+setInterval(() => sendDueReminders().catch((error) => console.error('Automatic reminder error:', error)), 15 * 60 * 1000);
 
 app.listen(port, () => {
   console.log(`PayMe backend running at http://localhost:${port}`);

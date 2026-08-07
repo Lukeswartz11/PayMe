@@ -25,6 +25,7 @@ const developerMenu = document.getElementById('developer-menu');
 const developerMenuClose = document.getElementById('developer-menu-close');
 const developerAccountList = document.getElementById('developer-account-list');
 const developerMenuError = document.getElementById('developer-menu-error');
+const notificationButton = document.getElementById('notification-button');
 let authMode = 'sign-in';
 let currentUser = null;
 const APP_VERSION = '20260807-name-login-r2';
@@ -961,10 +962,46 @@ function escapeHtml(str) {
 // =============================================================
 // ACCOUNT ACCESS
 // =============================================================
+function urlBase64ToUint8Array(value) {
+  const padded = `${value}${'='.repeat((4 - value.length % 4) % 4)}`.replace(/-/g, '+').replace(/_/g, '/');
+  return Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
+}
+
+function updateNotificationButton() {
+  const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  notificationButton.hidden = !currentUser || !supported;
+  if (!supported || !currentUser) return;
+  notificationButton.disabled = Notification.permission === 'denied';
+  notificationButton.textContent = Notification.permission === 'granted' ? 'Phone alerts enabled' : 'Enable phone alerts';
+}
+
+async function enablePhoneAlerts() {
+  try {
+    if (Notification.permission === 'denied') throw new Error('Phone notifications are blocked in this browser. Enable them in your phone or browser settings.');
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') throw new Error('Phone notification permission was not granted.');
+    const registration = await navigator.serviceWorker.register('/push-sw.js');
+    const keyResponse = await apiFetch('/api/push/public-key');
+    const keyPayload = await keyResponse.json();
+    if (!keyResponse.ok) throw new Error(keyPayload.error || 'Phone notifications are not configured yet.');
+    const subscription = await registration.pushManager.getSubscription()
+      || await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(keyPayload.publicKey) });
+    const response = await apiFetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription }) });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'Could not enable phone alerts.');
+    updateNotificationButton();
+  } catch (error) {
+    alert(error.message || 'Could not enable phone alerts.');
+  }
+}
+
+notificationButton.addEventListener('click', enablePhoneAlerts);
+
 function setDeveloperAccess(user) {
   currentUser = user || null;
   developerMenuButton.hidden = !currentUser?.isDeveloper;
   if (!currentUser?.isDeveloper) developerMenu.hidden = true;
+  updateNotificationButton();
 }
 
 function showDeveloperError(message = '') {
