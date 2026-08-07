@@ -12,11 +12,8 @@ const dataPath = path.resolve(__dirname, 'data.json');
 const publicRoot = path.resolve(__dirname, '..');
 const firebaseDbUrl = process.env.FIREBASE_DATABASE_URL?.replace(/\/$/, '');
 const sessionSecret = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
-const resendApiKey = process.env.RESEND_API_KEY;
-const emailFrom = process.env.EMAIL_FROM;
-const publicAppUrl = process.env.PUBLIC_APP_URL;
 const sessions = new Map();
-const developerAccount = { email: 'lukeswartz11@gmail.com', name: 'Luke', password: 'Lukeswartz11' };
+const developerAccount = { name: 'Luke', password: 'Lukeswartz11' };
 const legacyStarterPeople = ['Luke', 'Andrew', 'Logan', 'Kai', 'Carson', 'conner'];
 
 const defaultData = {
@@ -83,8 +80,8 @@ function validPassword(password, user) {
   return crypto.timingSafeEqual(hash, Buffer.from(user.passwordHash, 'hex'));
 }
 
-function getUserEmail(user) {
-  return String(user.email || user.username || '').toLowerCase();
+function getUserLoginName(user) {
+  return String(user.name || user.username || '').trim().toLowerCase();
 }
 
 function prepareHousehold(data) {
@@ -94,9 +91,9 @@ function prepareHousehold(data) {
     data.people = [];
     changed = true;
   }
-  if (!data.users.some((user) => getUserEmail(user) === developerAccount.email)) {
+  if (!data.users.some((user) => getUserLoginName(user) === developerAccount.name.toLowerCase())) {
     const { salt, hash } = hashPassword(developerAccount.password);
-    data.users.push({ id: crypto.randomUUID(), email: developerAccount.email, name: developerAccount.name, salt, passwordHash: hash, createdAt: new Date().toISOString() });
+    data.users.push({ id: crypto.randomUUID(), name: developerAccount.name, salt, passwordHash: hash, createdAt: new Date().toISOString() });
     changed = true;
   }
   if (!data.people.some((person) => person.toLowerCase() === developerAccount.name.toLowerCase())) {
@@ -110,30 +107,6 @@ async function readPreparedData() {
   const data = await readData();
   if (prepareHousehold(data)) await writeData(data);
   return data;
-}
-
-function removeUserSessions(userId) {
-  for (const [token, session] of sessions) {
-    if (session.userId === userId) sessions.delete(token);
-  }
-}
-
-async function sendPasswordResetEmail(email, token) {
-  if (!resendApiKey || !emailFrom || !publicAppUrl) throw new Error('Email service is not configured.');
-  const resetUrl = new URL(publicAppUrl);
-  resetUrl.searchParams.set('reset', token);
-  resetUrl.searchParams.set('email', email);
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      from: emailFrom,
-      to: [email],
-      subject: 'Reset your Pay Luke password',
-      text: `Use this link to reset your Pay Luke password. It expires in one hour:\n${resetUrl}`,
-    }),
-  });
-  if (!response.ok) throw new Error(`Email provider rejected the request (${response.status}).`);
 }
 
 function createSession(user, response) {
@@ -179,21 +152,19 @@ async function writeData(data) {
 
 app.post('/api/auth/signup', async (req, res) => {
   try {
-    const email = String(req.body?.email || '').trim().toLowerCase();
     const name = String(req.body?.name || '').trim();
     const password = String(req.body?.password || '');
-    if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: 'Enter a valid email address.' });
     if (!/^[a-zA-Z][a-zA-Z '-]{0,30}$/.test(name)) return res.status(400).json({ error: 'Enter a valid first name.' });
     if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
     const data = await readPreparedData();
-    if (data.users.some((user) => getUserEmail(user) === email)) return res.status(409).json({ error: 'An account already uses that email address.' });
+    if (data.users.some((user) => getUserLoginName(user) === name.toLowerCase())) return res.status(409).json({ error: 'An account already uses that first name.' });
     const { salt, hash } = hashPassword(password);
-    const user = { id: crypto.randomUUID(), email, name, salt, passwordHash: hash, createdAt: new Date().toISOString() };
+    const user = { id: crypto.randomUUID(), name, salt, passwordHash: hash, createdAt: new Date().toISOString() };
     data.users.push(user);
     if (!data.people.some((person) => person.toLowerCase() === name.toLowerCase())) data.people.push(name);
     await writeData(data);
     const sessionToken = createSession(user, res);
-    res.status(201).json({ user: { email: user.email, name: user.name }, sessionToken });
+    res.status(201).json({ user: { name: user.name }, sessionToken });
   } catch (error) {
     console.error('POST /api/auth/signup error:', error);
     res.status(500).json({ error: 'Could not create account.' });
@@ -202,13 +173,13 @@ app.post('/api/auth/signup', async (req, res) => {
 
 app.post('/api/auth/signin', async (req, res) => {
   try {
-    const email = String(req.body?.email || '').trim().toLowerCase();
+    const name = String(req.body?.name || '').trim();
     const password = String(req.body?.password || '');
     const data = await readPreparedData();
-    const user = data.users.find((candidate) => getUserEmail(candidate) === email);
-    if (!user || !validPassword(password, user)) return res.status(401).json({ error: 'Incorrect email or password.' });
+    const user = data.users.find((candidate) => getUserLoginName(candidate) === name.toLowerCase());
+    if (!user || !validPassword(password, user)) return res.status(401).json({ error: 'Incorrect first name or password.' });
     const sessionToken = createSession(user, res);
-    res.json({ user: { email: getUserEmail(user), name: user.name || '' }, sessionToken });
+    res.json({ user: { name: user.name || '' }, sessionToken });
   } catch (error) {
     console.error('POST /api/auth/signin error:', error);
     res.status(500).json({ error: 'Could not sign in.' });
@@ -219,52 +190,7 @@ app.get('/api/auth/me', requireAuth, async (req, res) => {
   const data = await readPreparedData();
   const user = data.users.find((candidate) => candidate.id === req.userId);
   if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
-  res.json({ user: { email: getUserEmail(user), name: user.name || '' } });
-});
-
-app.post('/api/auth/request-password-reset', async (req, res) => {
-  try {
-    const email = String(req.body?.email || '').trim().toLowerCase();
-    const data = await readData();
-    const user = data.users.find((candidate) => getUserEmail(candidate) === email);
-    if (user) {
-      const token = crypto.randomBytes(32).toString('hex');
-      user.resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
-      user.resetTokenExpiresAt = Date.now() + 60 * 60 * 1000;
-      await writeData(data);
-      await sendPasswordResetEmail(email, token);
-    }
-    res.json({ message: 'If an account exists for that email, a reset link has been sent.' });
-  } catch (error) {
-    console.error('POST /api/auth/request-password-reset error:', error);
-    res.status(500).json({ error: 'Could not send reset email. Please try again later.' });
-  }
-});
-
-app.post('/api/auth/reset-password', async (req, res) => {
-  try {
-    const email = String(req.body?.email || '').trim().toLowerCase();
-    const token = String(req.body?.token || '');
-    const password = String(req.body?.password || '');
-    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
-    const data = await readData();
-    const user = data.users.find((candidate) => getUserEmail(candidate) === email);
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    if (!user || !user.resetTokenHash || !user.resetTokenExpiresAt || user.resetTokenExpiresAt < Date.now() || !crypto.timingSafeEqual(Buffer.from(user.resetTokenHash), Buffer.from(tokenHash))) {
-      return res.status(400).json({ error: 'This reset link is invalid or has expired.' });
-    }
-    const { salt, hash } = hashPassword(password);
-    user.salt = salt;
-    user.passwordHash = hash;
-    delete user.resetTokenHash;
-    delete user.resetTokenExpiresAt;
-    removeUserSessions(user.id);
-    await writeData(data);
-    res.json({ message: 'Password updated. You can now sign in.' });
-  } catch (error) {
-    console.error('POST /api/auth/reset-password error:', error);
-    res.status(500).json({ error: 'Could not reset password.' });
-  }
+  res.json({ user: { name: user.name || '' } });
 });
 
 app.post('/api/auth/logout', requireAuth, (req, res) => {

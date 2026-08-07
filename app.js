@@ -13,19 +13,15 @@ const appShell = document.getElementById('app-shell');
 const authForm = document.getElementById('auth-form');
 const authUsername = document.getElementById('auth-username');
 const authPassword = document.getElementById('auth-password');
-const authName = document.getElementById('auth-name');
-const authNameField = document.getElementById('auth-name-field');
 const authRemember = document.getElementById('auth-remember');
 const authPasswordField = document.getElementById('auth-password-field');
 const authError = document.getElementById('auth-error');
 const authSubmit = document.getElementById('auth-submit');
 const authModeToggle = document.getElementById('auth-mode-toggle');
-const forgotPasswordButton = document.getElementById('forgot-password-button');
 const authCopy = document.getElementById('auth-copy');
 const logoutButton = document.getElementById('logout-button');
-let authMode = new URLSearchParams(window.location.search).has('reset') ? 'reset-password' : 'sign-in';
-const resetToken = new URLSearchParams(window.location.search).get('reset') || '';
-const APP_VERSION = '20260807-people';
+let authMode = 'sign-in';
+const APP_VERSION = '20260807-name-login';
 
 const DEFAULT_STATE = {
   people: [],
@@ -964,33 +960,12 @@ function escapeHtml(str) {
 function setAuthMode(nextMode) {
   authMode = nextMode;
   const isSignUp = nextMode === 'sign-up';
-  const isResetRequest = nextMode === 'reset-request';
-  const isResetPassword = nextMode === 'reset-password';
   authCopy.textContent = isSignUp
-    ? 'Create one of the six house accounts to access the shared ledger.'
-    : isResetRequest
-      ? 'Enter your email and we will send a password-reset link.'
-      : isResetPassword
-        ? 'Choose a new password for your Pay Luke account.'
-        : 'Sign in to view and update the house ledger.';
-  authSubmit.textContent = isSignUp ? 'Create account' : isResetRequest ? 'Send reset link' : isResetPassword ? 'Save new password' : 'Sign in';
+    ? 'Create an account to access the shared ledger.'
+    : 'Sign in to view and update the house ledger.';
+  authSubmit.textContent = isSignUp ? 'Create account' : 'Sign in';
   authModeToggle.textContent = isSignUp ? 'Already have an account? Sign in' : 'Need an account? Sign up';
-  authModeToggle.hidden = isResetRequest || isResetPassword;
-  forgotPasswordButton.hidden = isSignUp || isResetRequest || isResetPassword;
-  authPasswordField.hidden = isResetRequest;
-  authPassword.hidden = isResetRequest;
-  authPassword.required = !isResetRequest;
-  authNameField.hidden = !isSignUp;
-  authName.hidden = !isSignUp;
-  authName.required = isSignUp;
-  authRemember.closest('label').hidden = isResetRequest || isResetPassword;
-  authPassword.autocomplete = isSignUp || isResetPassword ? 'new-password' : 'current-password';
-  if (isResetPassword) {
-    authUsername.value = new URLSearchParams(window.location.search).get('email') || '';
-    authUsername.readOnly = true;
-  } else {
-    authUsername.readOnly = false;
-  }
+  authPassword.autocomplete = isSignUp ? 'new-password' : 'current-password';
   authError.hidden = true;
 }
 
@@ -1015,24 +990,17 @@ function showApp() {
 }
 
 authModeToggle.addEventListener('click', () => setAuthMode(authMode === 'sign-up' ? 'sign-in' : 'sign-up'));
-forgotPasswordButton.addEventListener('click', () => setAuthMode('reset-request'));
 
 authForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   authError.hidden = true;
   authSubmit.disabled = true;
   try {
-    const endpoint = authMode === 'sign-up'
-      ? '/api/auth/signup'
-      : authMode === 'reset-request'
-        ? '/api/auth/request-password-reset'
-        : authMode === 'reset-password'
-          ? '/api/auth/reset-password'
-          : '/api/auth/signin';
+    const endpoint = authMode === 'sign-up' ? '/api/auth/signup' : '/api/auth/signin';
     const response = await apiFetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: authUsername.value.trim(), name: authName.value.trim(), password: authPassword.value, token: resetToken }),
+      body: JSON.stringify({ name: authUsername.value.trim(), password: authPassword.value }),
     });
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
@@ -1040,18 +1008,6 @@ authForm.addEventListener('submit', async (event) => {
     }
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || 'Could not sign in.');
-    if (authMode === 'reset-request') {
-      authError.textContent = payload.message;
-      authError.hidden = false;
-      return;
-    }
-    if (authMode === 'reset-password') {
-      history.replaceState({}, '', window.location.pathname);
-      setAuthMode('sign-in');
-      authError.textContent = payload.message;
-      authError.hidden = false;
-      return;
-    }
     if (!payload.sessionToken) throw new Error('The server did not create a session. Please try again.');
     saveSessionToken(payload.sessionToken, authRemember.checked);
     showApp();

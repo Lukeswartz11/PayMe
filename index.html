@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,900;1,9..144,600&family=Space+Mono:wght@400;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20260807-people">
+<link rel="stylesheet" href="style.css?v=20260807-name-login">
 </head>
 <body>
 
@@ -17,10 +17,8 @@
       <h1 id="auth-title" class="title">Pay Luke</h1>
       <p id="auth-copy" class="auth-copy">Sign in to view and update the house ledger.</p>
       <form id="auth-form" class="auth-form">
-        <label for="auth-username">Email address</label>
-        <input id="auth-username" name="email" type="email" autocomplete="email" maxlength="254" required>
-        <label id="auth-name-field" for="auth-name" hidden>First name</label>
-        <input id="auth-name" name="name" type="text" autocomplete="given-name" maxlength="31" hidden>
+        <label for="auth-username">First name</label>
+        <input id="auth-username" name="name" type="text" autocomplete="given-name" maxlength="31" required>
         <label id="auth-password-field" for="auth-password">Password</label>
         <input id="auth-password" name="password" type="password" autocomplete="current-password" minlength="8" required>
         <label class="auth-remember"><input id="auth-remember" type="checkbox"> Keep me signed in on this device</label>
@@ -28,8 +26,6 @@
         <button id="auth-submit" type="submit" class="btn btn-red btn-wide">Sign in</button>
       </form>
       <button id="auth-mode-toggle" type="button" class="auth-toggle">Need an account? Sign up</button>
-      <button id="forgot-password-button" type="button" class="auth-toggle">Forgot password?</button>
-      <p class="auth-note">Use your real first name so house expenses are assigned correctly.</p>
     </div>
   </section>
 
@@ -197,6 +193,6 @@
 
   </div>
 
-<script src="app.js?v=20260807-people"></script>
+<script src="app.js?v=20260807-name-login"></script>
 </body>
 </html>
