@@ -21,7 +21,7 @@ const authModeToggle = document.getElementById('auth-mode-toggle');
 const authCopy = document.getElementById('auth-copy');
 const logoutButton = document.getElementById('logout-button');
 let authMode = 'sign-in';
-const APP_VERSION = '20260807-name-login';
+const APP_VERSION = '20260807-name-login-r2';
 
 const DEFAULT_STATE = {
   people: [],
