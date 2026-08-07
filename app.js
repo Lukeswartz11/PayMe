@@ -43,7 +43,7 @@ const accountNameInput = document.getElementById('account-name-input');
 const accountNameError = document.getElementById('account-name-error');
 let authMode = 'sign-in';
 let currentUser = null;
-const APP_VERSION = '20260807-payment-links-r9';
+const APP_VERSION = '20260807-mobile-settings-r10';
 
 const DEFAULT_STATE = {
   people: [],
@@ -1230,12 +1230,18 @@ function openSettingsMenu() {
   accountNameInput.value = currentUser?.name || '';
   accountNameError.hidden = true;
   settingsMenu.hidden = false;
-  accountNameInput.focus();
+  document.body.classList.add('settings-open');
+}
+
+function closeSettingsMenu() {
+  settingsMenu.hidden = true;
+  document.body.classList.remove('settings-open');
+  settingsButton.focus({ preventScroll: true });
 }
 
 settingsButton.addEventListener('click', openSettingsMenu);
-settingsMenuClose.addEventListener('click', () => { settingsMenu.hidden = true; });
-settingsMenu.addEventListener('click', (event) => { if (event.target === settingsMenu) settingsMenu.hidden = true; });
+settingsMenuClose.addEventListener('click', closeSettingsMenu);
+settingsMenu.addEventListener('click', (event) => { if (event.target === settingsMenu) closeSettingsMenu(); });
 
 accountNameForm.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -1258,7 +1264,10 @@ function setDeveloperAccess(user) {
   currentUser = user || null;
   developerSettingsRow.hidden = !currentUser?.isDeveloper;
   if (!currentUser?.isDeveloper) developerMenu.hidden = true;
-  if (!currentUser) settingsMenu.hidden = true;
+  if (!currentUser) {
+    settingsMenu.hidden = true;
+    document.body.classList.remove('settings-open');
+  }
   updateNotificationButton();
   updatePaymentInfoButtons();
 }

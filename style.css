@@ -218,8 +218,10 @@ body :where(h1, h2, h3, p, span, label, legend, li, button, input, select) {
 .header-actions { display: flex; justify-content: flex-end; }
 .settings-button { width: 2.25rem; height: 2.25rem; padding: 0; border: 1px solid color-mix(in srgb, var(--ink-soft) 38%, transparent); border-radius: 50%; background: var(--paper); color: var(--ink); font-size: 1.25rem; line-height: 1; cursor: pointer; transition: color 160ms ease, border-color 160ms ease, transform 160ms ease; }
 .settings-button:hover { border-color: var(--stamp-red-ink); color: var(--stamp-red-ink); transform: rotate(24deg); }
-.settings-menu { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 1.5rem; background: rgba(36, 36, 36, 0.55); }
-.settings-menu-card { width: min(100%, 440px); padding: 1.5rem; border: 2px solid var(--paper-line); border-radius: 8px; background: var(--paper); box-shadow: 0 10px 30px var(--shadow); }
+.settings-menu { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 1.5rem; overflow: hidden; background: rgba(36, 36, 36, 0.55); }
+.settings-menu-card { width: min(100%, 440px); max-height: calc(100dvh - 3rem); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; padding: 1.5rem; border: 2px solid var(--paper-line); border-radius: 8px; background: var(--paper); box-shadow: 0 10px 30px var(--shadow); }
+body.settings-open { overflow: hidden; overscroll-behavior: none; touch-action: none; }
+body.settings-open .settings-menu-card { touch-action: pan-y; }
 .settings-menu-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
 .settings-menu-heading h2 { margin: 0; font-family: var(--font-display); }
 .settings-menu-close { border: 0; background: transparent; color: var(--ink-soft); font-size: 2rem; line-height: 1; cursor: pointer; }
@@ -1012,7 +1014,7 @@ input:focus-visible, select:focus-visible, button:focus-visible {
 
 @media (max-width: 460px) {
   .settings-menu { padding: 0.8rem; }
-  .settings-menu-card { padding: 1.2rem; }
+  .settings-menu-card { max-height: calc(100dvh - 1.6rem); padding: 1.2rem; }
   .settings-notifications { align-items: flex-start; flex-direction: column; }
   .settings-row { align-items: stretch; flex-direction: column; }
   .account-name-controls { width: 100%; }
