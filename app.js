@@ -45,7 +45,7 @@ const accountNameInput = document.getElementById('account-name-input');
 const accountNameError = document.getElementById('account-name-error');
 let authMode = 'sign-in';
 let currentUser = null;
-const APP_VERSION = '20260807-usbank-r19';
+const APP_VERSION = '20260807-venmo-app-r20';
 
 const DEFAULT_STATE = {
   people: [],
@@ -779,7 +779,18 @@ async function showPayNow(payment) {
     payWithZelle.disabled = false;
     payWithVenmo.onclick = () => {
       const params = new URLSearchParams({ txn: 'pay', recipients: info.venmo, amount: Number(payment.amount).toFixed(2), note: payment.desc || 'Pay Up' });
-      window.open(`https://venmo.com/?${params}`, '_blank', 'noopener');
+      const webUrl = `https://venmo.com/?${params}`;
+      const isPhone = /iPhone|iPod|Android/i.test(navigator.userAgent);
+      if (!isPhone) {
+        window.open(webUrl, '_blank', 'noopener');
+        return;
+      }
+
+      const fallbackTimer = setTimeout(() => {
+        if (document.visibilityState === 'visible') window.location.href = webUrl;
+      }, 1400);
+      window.addEventListener('pagehide', () => clearTimeout(fallbackTimer), { once: true });
+      window.location.href = `venmo://paycharge?${params}`;
     };
     payWithZelle.onclick = async () => {
       const recipient = info.zelle || payment.to;
