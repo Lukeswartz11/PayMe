@@ -44,7 +44,7 @@ const accountNameInput = document.getElementById('account-name-input');
 const accountNameError = document.getElementById('account-name-error');
 let authMode = 'sign-in';
 let currentUser = null;
-const APP_VERSION = '20260807-huntington-r15';
+const APP_VERSION = '20260807-huntington-r16';
 
 const DEFAULT_STATE = {
   people: [],
@@ -759,13 +759,21 @@ async function showPayNow(payment) {
   payWithZelle.disabled = true;
   payNowMenu.hidden = false;
   try {
-    const response = await apiFetch(`/api/payment-info/${encodeURIComponent(payment.to)}`);
+    const [response, senderResponse] = await Promise.all([
+      apiFetch(`/api/payment-info/${encodeURIComponent(payment.to)}`),
+      apiFetch(`/api/payment-info/${encodeURIComponent(payment.from)}`),
+    ]);
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
       throw new Error('Payment links need the latest backend. Deploy the newest commit to Render, then try again.');
     }
     const info = await response.json();
     if (!response.ok) throw new Error(info.error || 'Could not load payment information.');
+    let senderInfo = {};
+    if ((senderResponse.headers.get('content-type') || '').includes('application/json')) {
+      senderInfo = await senderResponse.json();
+    }
+    const senderBank = senderInfo.bank || (payment.from === currentUser?.name ? currentUser.bank : '');
     payWithVenmo.disabled = !info.venmo;
     payWithZelle.disabled = !info.zelle;
     payWithVenmo.onclick = () => {
@@ -774,10 +782,10 @@ async function showPayNow(payment) {
     };
     payWithZelle.onclick = async () => {
       const details = `${info.zelle} — ${money(payment.amount)}`;
-      const bankUrl = currentUser?.bank === 'huntington'
+      const bankUrl = senderBank === 'huntington'
         ? 'https://www.huntington.com/mobile-login'
         : 'https://enroll.zellepay.com/mobile';
-      const bankInstruction = currentUser?.bank === 'huntington'
+      const bankInstruction = senderBank === 'huntington'
         ? 'Huntington opened. Go to Pay & Transfer, then Zelle, to finish the payment.'
         : 'Select your bank on the page that opened, then continue to its app to finish the payment.';
       window.open(bankUrl, '_blank', 'noopener');
