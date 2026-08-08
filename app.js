@@ -45,7 +45,7 @@ const accountNameInput = document.getElementById('account-name-input');
 const accountNameError = document.getElementById('account-name-error');
 let authMode = 'sign-in';
 let currentUser = null;
-const APP_VERSION = '20260807-venmo-app-r20';
+const APP_VERSION = '20260807-description-spaces-r21';
 
 const DEFAULT_STATE = {
   people: [],
@@ -609,8 +609,8 @@ expenseForm.addEventListener('submit', async (e) => {
   );
 
   if (!category || !amount || amount <= 0 || !paidBy || !month) return;
-  if (category === 'other' && (!description || /\s/.test(description))) {
-    descriptionInput.setCustomValidity('Enter a one-word description without spaces.');
+  if (category === 'other' && (!description || description.length >= 24)) {
+    descriptionInput.setCustomValidity('Enter a description shorter than 24 characters.');
     descriptionInput.reportValidity();
     return;
   }
@@ -697,7 +697,7 @@ function renderPaymentOptions() {
   const previousFrom = paymentFrom.value;
   const previousTo = paymentTo.value;
 
-  populateSelect(paymentFrom, debtors, previousFrom, 'No one owes money');
+  populateSelect(paymentFrom, debtors, previousFrom, currentUser?.isDeveloper ? 'No one owes money' : "You're not in debt");
   populateSelect(paymentTo, creditors, previousTo, 'No one is owed money');
   paymentFrom.disabled = debtors.length === 0 || !currentUser?.isDeveloper;
   paymentTo.disabled = creditors.length === 0;
@@ -717,8 +717,8 @@ paymentForm.addEventListener('submit', async (event) => {
   const description = paymentDescription.value.trim();
   const limit = paymentLimit();
   if (!paymentFrom.value || !paymentTo.value || !amount || amount <= 0) return;
-  if (!description || /\s/.test(description)) {
-    paymentDescription.setCustomValidity('Enter a one-word description without spaces.');
+  if (!description || description.length >= 24) {
+    paymentDescription.setCustomValidity('Enter a description shorter than 24 characters.');
     paymentDescription.reportValidity();
     return;
   }

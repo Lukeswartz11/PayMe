@@ -518,6 +518,10 @@ app.post('/api/expenses', requireAuth, async (req, res) => {
     if (!expense || !expense.id) {
       return res.status(400).json({ error: 'Invalid expense.' });
     }
+    expense.desc = String(expense.desc || '').trim();
+    if (expense.category === 'other' && (!expense.desc || expense.desc.length >= 24)) {
+      return res.status(400).json({ error: 'Enter an expense description shorter than 24 characters.' });
+    }
     if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
     if (!user.isDeveloper) expense.paidBy = user.name;
     expense.createdBy = user.id;
@@ -544,8 +548,8 @@ app.post('/api/settlements', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Invalid payment.' });
     }
     payment.desc = String(payment.desc || '').trim();
-    if (!payment.desc || payment.desc.length > 24 || /\s/.test(payment.desc)) {
-      return res.status(400).json({ error: 'Enter a one-word payment description.' });
+    if (!payment.desc || payment.desc.length >= 24) {
+      return res.status(400).json({ error: 'Enter a payment description shorter than 24 characters.' });
     }
     if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
     if (!user.isDeveloper) payment.from = user.name;
