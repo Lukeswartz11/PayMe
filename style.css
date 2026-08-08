@@ -143,34 +143,44 @@ a { color: inherit; }
 
 
 .tab-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.35rem;
   margin-top: 1rem;
-  padding: 0.8rem;
-  background: rgba(255, 255, 255, 0.9);
-  border: 2px solid var(--paper-line);
-  border-radius: 8px;
-  box-shadow: 0 6px 20px var(--shadow);
+  padding: 0.4rem;
+  background: color-mix(in srgb, var(--ink) 7%, rgba(255, 255, 255, 0.94));
+  border: 1.5px solid color-mix(in srgb, var(--ink-soft) 32%, transparent);
+  border-radius: 12px;
+  box-shadow: 0 8px 22px rgba(36, 36, 36, 0.14), inset 0 1px rgba(255, 255, 255, 0.8);
 }
 .tab-button {
-  flex: 1 1 120px;
+  position: relative;
+  min-width: 0;
   font-family: var(--font-mono);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  color: var(--ink);
-  background: var(--paper);
-  border: 2px solid var(--paper-line);
-  border-radius: 4px;
-  padding: 0.7rem 0.9rem;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1.5px solid transparent;
+  border-radius: 8px;
+  padding: 0.78rem 0.65rem;
   cursor: pointer;
+  transition: color 160ms ease, background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 .tab-button[aria-selected="true"] {
   color: var(--paper);
-  background: var(--stamp-red);
+  background: linear-gradient(145deg, var(--stamp-red), var(--stamp-red-ink));
   border-color: var(--stamp-red-ink);
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--stamp-red-ink) 34%, transparent), inset 0 1px rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
 }
-.tab-button:hover { border-color: var(--ink); }
+.tab-button:hover:not([aria-selected="true"]) {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.72);
+  border-color: color-mix(in srgb, var(--ink-soft) 34%, transparent);
+}
 
 body :where(h1, h2, h3, p, span, label, legend, li, button, input, select) {
   font-weight: 700;
@@ -987,16 +997,15 @@ input:focus-visible, select:focus-visible, button:focus-visible {
     margin-top: 0;
   }
   .tab-list {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    -webkit-overflow-scrolling: touch;
-    padding: 0.55rem;
+    gap: 0.25rem;
+    padding: 0.3rem;
+    border-radius: 10px;
   }
   .tab-button {
-    flex: 0 0 auto;
+    font-size: clamp(0.62rem, 2.8vw, 0.72rem);
+    letter-spacing: 0.015em;
     white-space: nowrap;
-    padding: 0.6rem 0.75rem;
+    padding: 0.68rem 0.25rem;
   }
   .panel {
     margin-top: 0.75rem;
@@ -1023,5 +1032,4 @@ input:focus-visible, select:focus-visible, button:focus-visible {
   .receipt-tabs { grid-template-columns: 1fr 1fr; }
   .expense-form { grid-template-columns: 1fr; }
   .payment-form { grid-template-columns: 1fr; }
-  .tab-button { flex-basis: auto; }
 }

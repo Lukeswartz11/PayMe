@@ -158,37 +158,67 @@ function pushIsConfigured() {
 
 async function sendPushToUser(user, payload) {
   if (!pushIsConfigured() || !Array.isArray(user.pushSubscriptions)) return false;
-  let changed = false;
+  let delivered = false;
   const activeSubscriptions = [];
   for (const subscription of user.pushSubscriptions) {
     try {
       await webpush.sendNotification(subscription, JSON.stringify(payload));
       activeSubscriptions.push(subscription);
+      delivered = true;
     } catch (error) {
       if (error.statusCode !== 404 && error.statusCode !== 410) activeSubscriptions.push(subscription);
-      else changed = true;
       console.warn('Push delivery failed:', error.statusCode || error.message);
     }
   }
-  if (changed) user.pushSubscriptions = activeSubscriptions;
-  return changed;
+  user.pushSubscriptions = activeSubscriptions;
+  return delivered;
 }
 
 function expenseReminderRecipients(data, expense) {
   const splitAmong = Array.isArray(expense.splitAmong) ? expense.splitAmong : [];
-  const share = splitAmong.length ? expense.amount / splitAmong.length : 0;
+  const totalCents = Math.round(Number(expense.amount) * 100);
+  const baseShareCents = splitAmong.length ? Math.floor(totalCents / splitAmong.length) : 0;
+  const remainder = splitAmong.length ? totalCents - baseShareCents * splitAmong.length : 0;
   return splitAmong
-    .filter((name) => name !== expense.paidBy)
-    .map((name) => data.users.find((user) => user.name === name))
-    .filter(Boolean)
-    .map((user) => ({ userId: user.id, name: user.name, amount: share, dueAt: Date.now() + 24 * 60 * 60 * 1000, reminderSentAt: null }));
+    .map((name, index) => ({ name, amountCents: baseShareCents + (index < remainder ? 1 : 0) }))
+    .filter(({ name }) => name !== expense.paidBy)
+    .map(({ name, amountCents }) => ({ user: data.users.find((user) => user.name === name), amountCents }))
+    .filter(({ user }) => user)
+    .map(({ user, amountCents }) => ({ userId: user.id, name: user.name, amount: amountCents / 100, dueAt: Date.now() + 24 * 60 * 60 * 1000, reminderSentAt: null }));
 }
 
-function paymentAmountSince(data, reminder, expense) {
-  const createdAt = new Date(expense.createdAt || 0).getTime();
-  return data.settlements
-    .filter((payment) => payment.from === reminder.name && payment.to === expense.paidBy && new Date(payment.createdAt || 0).getTime() >= createdAt)
-    .reduce((total, payment) => total + Number(payment.amount || 0), 0);
+function reminderBalancesForPair(data, debtor, creditor) {
+  const debts = [];
+  for (const expense of data.expenses) {
+    if (expense.paidBy !== creditor || !Array.isArray(expense.splitAmong)) continue;
+    const debtorIndex = expense.splitAmong.indexOf(debtor);
+    if (debtorIndex < 0 || debtor === creditor || !expense.splitAmong.length) continue;
+    const totalCents = Math.round(Number(expense.amount) * 100);
+    const baseShareCents = Math.floor(totalCents / expense.splitAmong.length);
+    const remainder = totalCents - baseShareCents * expense.splitAmong.length;
+    debts.push({
+      expenseId: expense.id,
+      createdAt: new Date(expense.createdAt || 0).getTime(),
+      remainingCents: baseShareCents + (debtorIndex < remainder ? 1 : 0)
+    });
+  }
+  debts.sort((a, b) => a.createdAt - b.createdAt);
+
+  const payments = data.settlements
+    .filter((payment) => payment.from === debtor && payment.to === creditor)
+    .sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+  for (const payment of payments) {
+    const paidAt = new Date(payment.createdAt || 0).getTime();
+    let paymentCents = Math.round(Number(payment.amount) * 100);
+    for (const debt of debts) {
+      if (paymentCents <= 0) break;
+      if (debt.createdAt > paidAt || debt.remainingCents <= 0) continue;
+      const appliedCents = Math.min(paymentCents, debt.remainingCents);
+      debt.remainingCents -= appliedCents;
+      paymentCents -= appliedCents;
+    }
+  }
+  return new Map(debts.map((debt) => [debt.expenseId, debt.remainingCents / 100]));
 }
 
 function prepareHousehold(data) {
@@ -476,14 +506,22 @@ app.post('/api/push/subscribe', requireAuth, async (req, res) => {
 async function sendDueReminders() {
   const data = await readPreparedData();
   let changed = false;
+  const pairBalances = new Map();
   for (const expense of data.expenses) {
     for (const reminder of expense.reminders || []) {
-      const remaining = Math.max(0, Number(reminder.amount) - paymentAmountSince(data, reminder, expense));
+      const pairKey = `${reminder.name}\u0000${expense.paidBy}`;
+      if (!pairBalances.has(pairKey)) pairBalances.set(pairKey, reminderBalancesForPair(data, reminder.name, expense.paidBy));
+      const remaining = Math.max(0, pairBalances.get(pairKey).get(expense.id) ?? Number(reminder.amount));
       if (reminder.reminderSentAt || reminder.dueAt > Date.now() || remaining < 0.005) continue;
       const user = data.users.find((candidate) => candidate.id === reminder.userId);
-      if (user) await sendPushToUser(user, { title: 'Payment reminder', body: `You still owe ${expense.paidBy} $${remaining.toFixed(2)}. Please pay them or log your payment in Pay Up.`, url: '/', tag: `payment-reminder-${expense.id}` });
-      reminder.reminderSentAt = new Date().toISOString();
-      changed = true;
+      if (!user) continue;
+      const subscriptionCount = Array.isArray(user.pushSubscriptions) ? user.pushSubscriptions.length : 0;
+      const delivered = await sendPushToUser(user, { title: 'Payment reminder', body: `You still owe ${expense.paidBy} $${remaining.toFixed(2)}. Please pay them or log your payment in Pay Up.`, url: '/', tag: `payment-reminder-${expense.id}` });
+      if ((user.pushSubscriptions?.length || 0) !== subscriptionCount) changed = true;
+      if (delivered) {
+        reminder.reminderSentAt = new Date().toISOString();
+        changed = true;
+      }
     }
   }
   if (changed) await writeData(data);
