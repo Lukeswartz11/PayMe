@@ -44,7 +44,7 @@ const accountNameInput = document.getElementById('account-name-input');
 const accountNameError = document.getElementById('account-name-error');
 let authMode = 'sign-in';
 let currentUser = null;
-const APP_VERSION = '20260807-huntington-r16';
+const APP_VERSION = '20260807-huntington-ios-r17';
 
 const DEFAULT_STATE = {
   people: [],
@@ -782,19 +782,23 @@ async function showPayNow(payment) {
     };
     payWithZelle.onclick = async () => {
       const details = `${info.zelle} — ${money(payment.amount)}`;
+      const isIphone = /iPhone|iPod/.test(navigator.userAgent);
       const bankUrl = senderBank === 'huntington'
-        ? 'https://www.huntington.com/mobile-login'
+        ? isIphone
+          ? 'shortcuts://run-shortcut?name=Open%20Huntington'
+          : 'https://www.huntington.com/mobile-login'
         : 'https://enroll.zellepay.com/mobile';
       const bankInstruction = senderBank === 'huntington'
         ? 'Huntington opened. Go to Pay & Transfer, then Zelle, to finish the payment.'
         : 'Select your bank on the page that opened, then continue to its app to finish the payment.';
-      window.open(bankUrl, '_blank', 'noopener');
+      if (!(senderBank === 'huntington' && isIphone)) window.open(bankUrl, '_blank', 'noopener');
       try {
         await navigator.clipboard.writeText(details);
         payNowNote.textContent = `Copied ${details}. ${bankInstruction}`;
       } catch (error) {
         payNowNote.textContent = `Use ${info.zelle} and send ${money(payment.amount)}. ${bankInstruction}`;
       }
+      if (senderBank === 'huntington' && isIphone) window.location.href = bankUrl;
     };
     payNowNote.textContent = info.venmo || info.zelle
       ? 'Choose a payment app to finish sending the money. Recording it here did not transfer funds.'
