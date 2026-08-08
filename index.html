@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#a7271a">
 <link rel="manifest" href="/manifest.webmanifest">
-<title>Pay Luke — Split the Bills</title>
+<title>Pay Up — Split the Bills</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,900;1,9..144,600&family=Space+Mono:wght@400;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -16,7 +16,7 @@
   <section id="auth-screen" class="auth-screen" aria-labelledby="auth-title">
     <div class="auth-card">
       <p class="eyebrow">Da Crib &middot; Private ledger</p>
-      <h1 id="auth-title" class="title">Pay Luke</h1>
+      <h1 id="auth-title" class="title">Pay Up</h1>
       <p id="auth-copy" class="auth-copy">Sign in to view and update the house ledger.</p>
       <form id="auth-form" class="auth-form">
         <label for="auth-username">First name</label>
@@ -38,7 +38,7 @@
       <div class="cover-inner">
         <p class="eyebrow">Da Crib &middot; Payments</p>
         <div class="title-row">
-          <h1 class="title">Pay Luke</h1>
+          <h1 class="title">Pay Up</h1>
           <div class="header-actions">
             <button id="settings-button" class="settings-button" type="button" aria-label="Open settings" aria-haspopup="dialog" aria-controls="settings-menu">&#9881;</button>
           </div>
@@ -244,16 +244,12 @@
         <button id="notification-button" class="notification-button settings-action-button" type="button" hidden aria-label="Enable phone alerts">Enable alerts</button>
       </div>
       <div class="settings-row">
-        <div class="settings-row-copy"><h3>Zelle information</h3><p>Add the email address or phone number enrolled with Zelle.</p></div>
-        <button id="zelle-info-button" class="settings-action-button" type="button">Add Zelle information</button>
-      </div>
-      <div class="settings-row">
         <div class="settings-row-copy"><h3>Venmo information</h3><p>Add your Venmo username so payments can open prefilled.</p></div>
         <button id="venmo-info-button" class="settings-action-button" type="button">Add Venmo information</button>
       </div>
       <div class="settings-row">
-        <div class="settings-row-copy"><h3>Banking app</h3><p>Use Huntington when opening Zelle payments. On iPhone, create a Shortcut named “Open Huntington” with the Open App action.</p></div>
-        <button id="bank-info-button" class="settings-action-button" type="button">Use Huntington</button>
+        <div class="settings-row-copy"><h3>Banking app</h3><p>Choose the app to open for Zelle. On iPhone, install a matching “Open Huntington,” “Open KeyBank,” or “Open USBank” Shortcut.</p></div>
+        <div class="settings-bank-actions"><button id="huntington-bank-button" class="settings-action-button" type="button">Huntington</button><button id="keybank-bank-button" class="settings-action-button" type="button">KeyBank</button><button id="usbank-bank-button" class="settings-action-button" type="button">U.S. Bank</button></div>
       </div>
       <div id="developer-settings-row" class="settings-row" hidden><div class="settings-row-copy"><h3>Developer tools</h3><p>Manage the accounts that can use this ledger.</p></div><button id="developer-menu-button" class="settings-action-button" type="button">Developer menu</button></div>
       <div class="settings-row settings-signout"><div class="settings-row-copy"><h3>Sign out</h3><p>End your session on this device.</p></div><button id="logout-button" type="button" class="settings-action-button settings-danger-button">Sign out</button></div>
@@ -287,6 +283,6 @@
     </div>
   </section>
 
-<script src="app.js?v=20260807-huntington-ios-r17"></script>
+<script src="app.js?v=20260807-usbank-r19"></script>
 </body>
 </html>

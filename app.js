@@ -27,9 +27,10 @@ const developerMenuClose = document.getElementById('developer-menu-close');
 const developerAccountList = document.getElementById('developer-account-list');
 const developerMenuError = document.getElementById('developer-menu-error');
 const notificationButton = document.getElementById('notification-button');
-const zelleInfoButton = document.getElementById('zelle-info-button');
 const venmoInfoButton = document.getElementById('venmo-info-button');
-const bankInfoButton = document.getElementById('bank-info-button');
+const huntingtonBankButton = document.getElementById('huntington-bank-button');
+const keybankBankButton = document.getElementById('keybank-bank-button');
+const usbankBankButton = document.getElementById('usbank-bank-button');
 const payNowMenu = document.getElementById('pay-now-menu');
 const payNowClose = document.getElementById('pay-now-close');
 const payNowSummary = document.getElementById('pay-now-summary');
@@ -44,7 +45,7 @@ const accountNameInput = document.getElementById('account-name-input');
 const accountNameError = document.getElementById('account-name-error');
 let authMode = 'sign-in';
 let currentUser = null;
-const APP_VERSION = '20260807-huntington-ios-r17';
+const APP_VERSION = '20260807-usbank-r19';
 
 const DEFAULT_STATE = {
   people: [],
@@ -775,34 +776,43 @@ async function showPayNow(payment) {
     }
     const senderBank = senderInfo.bank || (payment.from === currentUser?.name ? currentUser.bank : '');
     payWithVenmo.disabled = !info.venmo;
-    payWithZelle.disabled = !info.zelle;
+    payWithZelle.disabled = false;
     payWithVenmo.onclick = () => {
-      const params = new URLSearchParams({ txn: 'pay', recipients: info.venmo, amount: Number(payment.amount).toFixed(2), note: payment.desc || 'Pay Luke' });
+      const params = new URLSearchParams({ txn: 'pay', recipients: info.venmo, amount: Number(payment.amount).toFixed(2), note: payment.desc || 'Pay Up' });
       window.open(`https://venmo.com/?${params}`, '_blank', 'noopener');
     };
     payWithZelle.onclick = async () => {
-      const details = `${info.zelle} — ${money(payment.amount)}`;
+      const recipient = info.zelle || payment.to;
+      const details = `${recipient} — ${money(payment.amount)}`;
       const isIphone = /iPhone|iPod/.test(navigator.userAgent);
-      const bankUrl = senderBank === 'huntington'
-        ? isIphone
-          ? 'shortcuts://run-shortcut?name=Open%20Huntington'
-          : 'https://www.huntington.com/mobile-login'
-        : 'https://enroll.zellepay.com/mobile';
-      const bankInstruction = senderBank === 'huntington'
-        ? 'Huntington opened. Go to Pay & Transfer, then Zelle, to finish the payment.'
+      const shortcutName = senderBank === 'huntington'
+        ? 'Open Huntington'
+        : senderBank === 'keybank'
+          ? 'Open KeyBank'
+          : senderBank === 'usbank' ? 'Open USBank' : '';
+      const bankUrl = shortcutName && isIphone
+        ? `shortcuts://run-shortcut?name=${encodeURIComponent(shortcutName)}`
+        : senderBank === 'huntington'
+          ? 'https://www.huntington.com/mobile-login'
+          : senderBank === 'keybank'
+            ? 'https://www.key.com/personal/online-banking/zelle.html'
+            : senderBank === 'usbank'
+              ? 'https://www.usbank.com/online-mobile-banking/zelle-person-to-person-payments/zelle-support.html'
+            : 'https://enroll.zellepay.com/mobile';
+      const bankName = senderBank === 'huntington' ? 'Huntington' : senderBank === 'keybank' ? 'KeyBank' : senderBank === 'usbank' ? 'U.S. Bank' : '';
+      const bankInstruction = bankName
+        ? `${bankName} opened. Select Zelle to finish the payment.`
         : 'Select your bank on the page that opened, then continue to its app to finish the payment.';
-      if (!(senderBank === 'huntington' && isIphone)) window.open(bankUrl, '_blank', 'noopener');
+      if (!(shortcutName && isIphone)) window.open(bankUrl, '_blank', 'noopener');
       try {
         await navigator.clipboard.writeText(details);
         payNowNote.textContent = `Copied ${details}. ${bankInstruction}`;
       } catch (error) {
-        payNowNote.textContent = `Use ${info.zelle} and send ${money(payment.amount)}. ${bankInstruction}`;
+        payNowNote.textContent = `Use ${recipient} and send ${money(payment.amount)}. ${bankInstruction}`;
       }
-      if (senderBank === 'huntington' && isIphone) window.location.href = bankUrl;
+      if (shortcutName && isIphone) window.location.href = bankUrl;
     };
-    payNowNote.textContent = info.venmo || info.zelle
-      ? 'Choose a payment app to finish sending the money. Recording it here did not transfer funds.'
-      : `${payment.to} has not added Zelle or Venmo information yet.`;
+    payNowNote.textContent = 'Choose a payment app to finish sending the money. Recording it here did not transfer funds.';
   } catch (error) {
     payNowNote.textContent = error.message || 'Payment options are unavailable.';
   }
@@ -960,7 +970,7 @@ function addTapToToggleDelete(row) {
 // RENDER EXPENSE LIST
 // =============================================================
 function isActiveExpense(expense) {
-  return state.people.includes(expense.paidBy) && Array.isArray(expense.splitAmong) && expense.splitAmong.every((person) => state.people.includes(person));
+  return state.people.includes(expense.paidBy) && Array.isArray(expense.splitAmong) && expense.splitAmong.length > 0;
 }
 
 function isActiveSettlement(settlement) {
@@ -1049,27 +1059,30 @@ function formatDate(iso) {
 // BALANCES
 // =============================================================
 function computeBalances() {
-  const balance = {};
-  state.people.forEach((p) => (balance[p] = 0));
+  const balanceCents = {};
+  state.people.forEach((person) => (balanceCents[person] = 0));
 
   state.expenses.filter(isActiveExpense).forEach((x) => {
-    if (!(x.paidBy in balance)) balance[x.paidBy] = 0;
-    balance[x.paidBy] += x.amount;
-    const share = x.amount / x.splitAmong.length;
-    x.splitAmong.forEach((p) => {
-      if (!(p in balance)) balance[p] = 0;
-      balance[p] -= share;
+    const totalCents = Math.round(Number(x.amount) * 100);
+    const baseShare = Math.floor(totalCents / x.splitAmong.length);
+    const remainder = totalCents - baseShare * x.splitAmong.length;
+    x.splitAmong.forEach((person, index) => {
+      if (person === x.paidBy || !state.people.includes(person)) return;
+      const shareCents = baseShare + (index < remainder ? 1 : 0);
+      balanceCents[x.paidBy] += shareCents;
+      balanceCents[person] -= shareCents;
     });
   });
 
   state.settlements.filter(isActiveSettlement).forEach((s) => {
-    if (!(s.from in balance)) balance[s.from] = 0;
-    if (!(s.to in balance)) balance[s.to] = 0;
-    balance[s.from] += s.amount; // paying off debt improves their balance
-    balance[s.to] -= s.amount;
+    const amountCents = Math.round(Number(s.amount) * 100);
+    balanceCents[s.from] += amountCents;
+    balanceCents[s.to] -= amountCents;
   });
 
-  return balance;
+  return Object.fromEntries(
+    Object.entries(balanceCents).map(([person, cents]) => [person, cents / 100])
+  );
 }
 
 function parseDateValue(value) {
@@ -1242,13 +1255,14 @@ async function enablePhoneAlerts() {
 notificationButton.addEventListener('click', enablePhoneAlerts);
 
 function updatePaymentInfoButtons() {
-  zelleInfoButton.textContent = currentUser?.zelle ? 'Update Zelle information' : 'Add Zelle information';
   venmoInfoButton.textContent = currentUser?.venmo ? 'Update Venmo information' : 'Add Venmo information';
-  bankInfoButton.textContent = currentUser?.bank === 'huntington' ? 'Huntington selected' : 'Use Huntington';
+  huntingtonBankButton.textContent = currentUser?.bank === 'huntington' ? 'Huntington selected' : 'Huntington';
+  keybankBankButton.textContent = currentUser?.bank === 'keybank' ? 'KeyBank selected' : 'KeyBank';
+  usbankBankButton.textContent = currentUser?.bank === 'usbank' ? 'U.S. Bank selected' : 'U.S. Bank';
 }
 
 async function savePaymentInfo(type) {
-  const label = type === 'zelle' ? 'Zelle email or phone number' : 'Venmo username';
+  const label = 'Venmo username';
   const existing = currentUser?.[type] || '';
   const value = prompt(label, existing);
   if (value === null) return;
@@ -1272,25 +1286,33 @@ async function savePaymentInfo(type) {
   }
 }
 
-zelleInfoButton.addEventListener('click', () => savePaymentInfo('zelle'));
 venmoInfoButton.addEventListener('click', () => savePaymentInfo('venmo'));
-bankInfoButton.addEventListener('click', async () => {
+async function saveBank(bank) {
   try {
     const response = await apiFetch('/api/auth/payment-info', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'bank', value: 'huntington' }),
+      body: JSON.stringify({ type: 'bank', value: bank }),
     });
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) throw new Error('Deploy the latest backend to Render, then try again.');
     const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || 'Could not save banking app.');
+    if (!response.ok) {
+      if (payload.error === 'Unsupported banking app.') {
+        throw new Error('Render is running an older backend. Deploy the latest commit to enable this bank.');
+      }
+      throw new Error(payload.error || 'Could not save banking app.');
+    }
     currentUser = { ...currentUser, ...payload };
     updatePaymentInfoButtons();
   } catch (error) {
     alert(error.message || 'Could not save banking app.');
   }
-});
+}
+
+huntingtonBankButton.addEventListener('click', () => saveBank('huntington'));
+keybankBankButton.addEventListener('click', () => saveBank('keybank'));
+usbankBankButton.addEventListener('click', () => saveBank('usbank'));
 
 function openSettingsMenu() {
   accountNameInput.value = currentUser?.name || '';

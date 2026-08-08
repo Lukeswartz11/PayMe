@@ -327,7 +327,7 @@ app.put('/api/auth/payment-info', requireAuth, async (req, res) => {
     const data = await readPreparedData();
     const user = data.users.find((candidate) => candidate.id === req.userId);
     if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
-    if (type === 'bank' && value !== 'huntington') return res.status(400).json({ error: 'Unsupported banking app.' });
+    if (type === 'bank' && !['huntington', 'keybank', 'usbank'].includes(value)) return res.status(400).json({ error: 'Unsupported banking app.' });
     user[type] = type === 'venmo' ? value.replace(/^@/, '') : value;
     await writeData(data);
     res.json({ zelle: user.zelle || '', venmo: user.venmo || '', bank: user.bank || '' });
@@ -429,6 +429,9 @@ app.delete('/api/developer/accounts/:id', requireAuth, requireDeveloper, async (
     if (user.isDeveloper) return res.status(403).json({ error: 'The developer account cannot be deleted.' });
     data.users = data.users.filter((candidate) => candidate.id !== user.id);
     data.people = data.people.filter((person) => person !== user.name);
+    data.expenses.forEach((expense) => {
+      if (expense.paidBy === user.name) expense.reminders = [];
+    });
     for (const [token, session] of sessions) if (session.userId === user.id) sessions.delete(token);
     await writeData(data);
     res.status(204).end();
@@ -478,7 +481,7 @@ async function sendDueReminders() {
       const remaining = Math.max(0, Number(reminder.amount) - paymentAmountSince(data, reminder, expense));
       if (reminder.reminderSentAt || reminder.dueAt > Date.now() || remaining < 0.005) continue;
       const user = data.users.find((candidate) => candidate.id === reminder.userId);
-      if (user) await sendPushToUser(user, { title: 'Payment reminder', body: `You still owe ${expense.paidBy} $${remaining.toFixed(2)}. Please pay them or log your payment in Pay Luke.`, url: '/', tag: `payment-reminder-${expense.id}` });
+      if (user) await sendPushToUser(user, { title: 'Payment reminder', body: `You still owe ${expense.paidBy} $${remaining.toFixed(2)}. Please pay them or log your payment in Pay Up.`, url: '/', tag: `payment-reminder-${expense.id}` });
       reminder.reminderSentAt = new Date().toISOString();
       changed = true;
     }

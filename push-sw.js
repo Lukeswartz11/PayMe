@@ -1,7 +1,7 @@
-/* Receives Web Push messages while Pay Luke is closed or in the background. */
+/* Receives Web Push messages while Pay Up is closed or in the background. */
 self.addEventListener('push', (event) => {
   const payload = event.data ? event.data.json() : {};
-  const title = payload.title || 'Pay Luke';
+  const title = payload.title || 'Pay Up';
   const options = {
     body: payload.body || 'You have a new payment update.',
     icon: '/Brutus_Front.png',

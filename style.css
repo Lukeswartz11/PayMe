@@ -37,6 +37,7 @@ body.is-authenticated .auth-screen { display: none !important; }
 html {
   margin: 0;
   padding: 0;
+  touch-action: manipulation;
 }
 
 body {
@@ -239,6 +240,7 @@ body.settings-open .settings-menu-card { touch-action: pan-y; }
 .settings-notifications h3 { margin: 0; font-size: 0.9rem; }
 .settings-notifications p { margin: 0.25rem 0 0; color: var(--ink-soft); font-size: 0.78rem; line-height: 1.35; }
 .settings-danger-button { border-color: var(--stamp-red-ink); }
+.settings-bank-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; }
 .settings-payment-note { margin: 0.8rem 0 0; color: var(--ink-soft); font-size: 0.78rem; line-height: 1.4; }
 .pay-now-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; margin-top: 1rem; }
 .pay-now-actions .settings-action-button { width: 100%; }
