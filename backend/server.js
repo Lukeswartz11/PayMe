@@ -13,11 +13,9 @@ const dataPath = path.resolve(__dirname, 'data.json');
 const publicRoot = path.resolve(__dirname, '..');
 const firebaseDbUrl = process.env.FIREBASE_DATABASE_URL?.replace(/\/$/, '');
 const firebaseServiceAccountRaw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '';
-const sessionSecret = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || '';
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '';
 const reminderCronSecret = process.env.REMINDER_CRON_SECRET || '';
-const sessions = new Map();
 const developerAccount = { name: 'Luke', password: 'Lukeswartz11' };
 const legacyStarterPeople = ['Luke', 'Andrew', 'Logan', 'Kai', 'Carson', 'conner'];
 const maxAccounts = 6;
@@ -221,6 +219,29 @@ function reminderBalancesForPair(data, debtor, creditor) {
   return new Map(debts.map((debt) => [debt.expenseId, debt.remainingCents / 100]));
 }
 
+function householdBalanceCents(data) {
+  const balances = Object.fromEntries(data.people.map((name) => [name, 0]));
+  for (const expense of data.expenses) {
+    if (!(expense.paidBy in balances) || !Array.isArray(expense.splitAmong) || !expense.splitAmong.length) continue;
+    const totalCents = Math.round(Number(expense.amount) * 100);
+    const baseShareCents = Math.floor(totalCents / expense.splitAmong.length);
+    const remainder = totalCents - baseShareCents * expense.splitAmong.length;
+    expense.splitAmong.forEach((name, index) => {
+      if (name === expense.paidBy || !(name in balances)) return;
+      const shareCents = baseShareCents + (index < remainder ? 1 : 0);
+      balances[expense.paidBy] += shareCents;
+      balances[name] -= shareCents;
+    });
+  }
+  for (const payment of data.settlements) {
+    if (!(payment.from in balances) || !(payment.to in balances)) continue;
+    const amountCents = Math.round(Number(payment.amount) * 100);
+    balances[payment.from] += amountCents;
+    balances[payment.to] -= amountCents;
+  }
+  return balances;
+}
+
 function prepareHousehold(data) {
   let changed = false;
   const isUntouchedLegacyHousehold = data.people.length === legacyStarterPeople.length && legacyStarterPeople.every((person, index) => data.people[index] === person) && data.expenses.length === 0 && data.settlements.length === 0;
@@ -250,31 +271,46 @@ async function readPreparedData() {
   return data;
 }
 
-function createSession(user, response) {
-  const token = crypto.randomBytes(32).toString('hex');
-  const signature = crypto.createHmac('sha256', sessionSecret).update(token).digest('hex');
-  sessions.set(token, { userId: user.id, expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000 });
-  response.cookie('payme_session', `${token}.${signature}`, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 7 * 24 * 60 * 60 * 1000 });
-  return `${token}.${signature}`;
+function sessionTokenHash(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-function requireAuth(request, response, next) {
-  const authorization = request.get('authorization') || '';
-  const credential = authorization.startsWith('Bearer ')
-    ? authorization.slice(7)
-    : parseCookies(request).payme_session || '';
-  const [token, signature] = credential.split('.');
-  const expected = token && crypto.createHmac('sha256', sessionSecret).update(token).digest('hex');
-  if (!token || !signature || !expected || signature.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
-    return response.status(401).json({ error: 'Sign in required.' });
+function createSession(user, response, remember) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const now = Date.now();
+  const activeSessions = Array.isArray(user.authSessions)
+    ? user.authSessions.filter((session) => !session.expiresAt || session.expiresAt > now)
+    : [];
+  user.authSessions = [...activeSessions.slice(-9), {
+    tokenHash: sessionTokenHash(token),
+    createdAt: new Date(now).toISOString(),
+    expiresAt: remember ? null : now + 24 * 60 * 60 * 1000,
+  }];
+  const cookieOptions = { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' };
+  if (remember) cookieOptions.maxAge = 10 * 365 * 24 * 60 * 60 * 1000;
+  response.cookie('payme_session', token, cookieOptions);
+  return token;
+}
+
+async function requireAuth(request, response, next) {
+  try {
+    const authorization = request.get('authorization') || '';
+    const token = authorization.startsWith('Bearer ')
+      ? authorization.slice(7)
+      : parseCookies(request).payme_session || '';
+    if (!token) return response.status(401).json({ error: 'Sign in required.' });
+    const tokenHash = sessionTokenHash(token);
+    const data = await readPreparedData();
+    const now = Date.now();
+    const user = data.users.find((candidate) => Array.isArray(candidate.authSessions) && candidate.authSessions.some((session) => session.tokenHash === tokenHash && (!session.expiresAt || session.expiresAt > now)));
+    if (!user) return response.status(401).json({ error: 'Your session has expired. Please sign in again.' });
+    request.userId = user.id;
+    request.sessionTokenHash = tokenHash;
+    next();
+  } catch (error) {
+    console.error('Session authorization error:', error);
+    response.status(500).json({ error: 'Could not verify your session.' });
   }
-  const session = sessions.get(token);
-  if (!session || session.expiresAt < Date.now()) {
-    sessions.delete(token);
-    return response.status(401).json({ error: 'Your session has expired. Please sign in again.' });
-  }
-  request.userId = session.userId;
-  next();
 }
 
 async function requireDeveloper(request, response, next) {
@@ -317,8 +353,8 @@ app.post('/api/auth/signup', async (req, res) => {
     const user = { id: crypto.randomUUID(), name, salt, passwordHash: hash, createdAt: new Date().toISOString() };
     data.users.push(user);
     if (!data.people.some((person) => person.toLowerCase() === name.toLowerCase())) data.people.push(name);
+    const sessionToken = createSession(user, res, Boolean(req.body?.remember));
     await writeData(data);
-    const sessionToken = createSession(user, res);
     res.status(201).json({ user: { id: user.id, name: user.name, isDeveloper: false, zelle: '', venmo: '', bank: '' }, sessionToken });
   } catch (error) {
     console.error('POST /api/auth/signup error:', error);
@@ -333,7 +369,8 @@ app.post('/api/auth/signin', async (req, res) => {
     const data = await readPreparedData();
     const user = data.users.find((candidate) => getUserLoginName(candidate) === name.toLowerCase());
     if (!user || !validPassword(password, user)) return res.status(401).json({ error: 'Incorrect first name or password.' });
-    const sessionToken = createSession(user, res);
+    const sessionToken = createSession(user, res, Boolean(req.body?.remember));
+    await writeData(data);
     res.json({ user: { id: user.id, name: user.name || '', isDeveloper: Boolean(user.isDeveloper), zelle: user.zelle || '', venmo: user.venmo || '', bank: user.bank || '' }, sessionToken });
   } catch (error) {
     console.error('POST /api/auth/signin error:', error);
@@ -462,7 +499,6 @@ app.delete('/api/developer/accounts/:id', requireAuth, requireDeveloper, async (
     data.expenses.forEach((expense) => {
       if (expense.paidBy === user.name) expense.reminders = [];
     });
-    for (const [token, session] of sessions) if (session.userId === user.id) sessions.delete(token);
     await writeData(data);
     res.status(204).end();
   } catch (error) {
@@ -471,13 +507,20 @@ app.delete('/api/developer/accounts/:id', requireAuth, requireDeveloper, async (
   }
 });
 
-app.post('/api/auth/logout', requireAuth, (req, res) => {
-  const authorization = req.get('authorization') || '';
-  const credential = authorization.startsWith('Bearer ') ? authorization.slice(7) : parseCookies(req).payme_session || '';
-  const token = credential.split('.')[0];
-  sessions.delete(token);
-  res.clearCookie('payme_session', { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
-  res.status(204).end();
+app.post('/api/auth/logout', requireAuth, async (req, res) => {
+  try {
+    const data = await readPreparedData();
+    const user = data.users.find((candidate) => candidate.id === req.userId);
+    if (user) {
+      user.authSessions = (user.authSessions || []).filter((session) => session.tokenHash !== req.sessionTokenHash);
+      await writeData(data);
+    }
+    res.clearCookie('payme_session', { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
+    res.status(204).end();
+  } catch (error) {
+    console.error('POST /api/auth/logout error:', error);
+    res.status(500).json({ error: 'Could not sign out.' });
+  }
 });
 
 app.get('/api/push/public-key', requireAuth, (req, res) => {
@@ -507,11 +550,15 @@ async function sendDueReminders() {
   const data = await readPreparedData();
   let changed = false;
   const pairBalances = new Map();
+  const balances = householdBalanceCents(data);
   for (const expense of data.expenses) {
     for (const reminder of expense.reminders || []) {
       const pairKey = `${reminder.name}\u0000${expense.paidBy}`;
       if (!pairBalances.has(pairKey)) pairBalances.set(pairKey, reminderBalancesForPair(data, reminder.name, expense.paidBy));
-      const remaining = Math.max(0, pairBalances.get(pairKey).get(expense.id) ?? Number(reminder.amount));
+      const requestRemaining = Math.max(0, pairBalances.get(pairKey).get(expense.id) ?? Number(reminder.amount));
+      const accountDebt = Math.max(0, -(balances[reminder.name] || 0) / 100);
+      const creditorBalance = Math.max(0, (balances[expense.paidBy] || 0) / 100);
+      const remaining = Math.min(requestRemaining, accountDebt, creditorBalance);
       if (reminder.reminderSentAt || reminder.dueAt > Date.now() || remaining < 0.005) continue;
       const user = data.users.find((candidate) => candidate.id === reminder.userId);
       if (!user) continue;
@@ -567,9 +614,11 @@ app.post('/api/expenses', requireAuth, async (req, res) => {
     expense.reminders = expenseReminderRecipients(data, expense);
     data.expenses.unshift(expense);
     await writeData(data);
+    const balances = householdBalanceCents(data);
     for (const reminder of expense.reminders) {
       const recipient = data.users.find((candidate) => candidate.id === reminder.userId);
-      if (recipient) await sendPushToUser(recipient, { title: 'New shared expense', body: `${expense.paidBy} paid $${Number(expense.amount).toFixed(2)}. You owe $${Number(reminder.amount).toFixed(2)} to ${expense.paidBy}.`, url: '/', tag: `expense-${expense.id}` });
+      const amountOwed = Math.min(Number(reminder.amount), Math.max(0, -(balances[reminder.name] || 0) / 100), Math.max(0, (balances[expense.paidBy] || 0) / 100));
+      if (recipient && amountOwed >= 0.005) await sendPushToUser(recipient, { title: 'New shared expense', body: `${expense.paidBy} paid $${Number(expense.amount).toFixed(2)}. You owe $${amountOwed.toFixed(2)} to ${expense.paidBy}.`, url: '/', tag: `expense-${expense.id}` });
     }
     res.status(201).json(expense);
   } catch (error) {

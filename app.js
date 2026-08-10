@@ -45,7 +45,7 @@ const accountNameInput = document.getElementById('account-name-input');
 const accountNameError = document.getElementById('account-name-error');
 let authMode = 'sign-in';
 let currentUser = null;
-const APP_VERSION = '20260807-description-spaces-r21';
+const APP_VERSION = '20260810-session-reminders-r22';
 
 const DEFAULT_STATE = {
   people: [],
@@ -292,6 +292,7 @@ const amountInput = document.getElementById('exp-amount');
 const payerSelect = document.getElementById('exp-payer');
 const dateInput = document.getElementById('exp-date');
 const monthInput = document.getElementById('exp-month');
+const monthField = document.getElementById('exp-month-field');
 const splitCheckboxes = document.getElementById('split-checkboxes');
 
 const expenseListEl = document.getElementById('expense-list');
@@ -391,6 +392,9 @@ setupSubTabs('expense', 'expense-panel-', (name) => {
     ? '<option value="other">Other</option>'
     : '<option value="gas">Gas</option><option value="electric">Electric</option><option value="internet">Internet</option>';
   categoryInput.value = isOther ? 'other' : 'gas';
+  monthField.hidden = isOther;
+  monthInput.disabled = isOther;
+  monthInput.required = !isOther;
   updateDescriptionField();
 });
 
@@ -591,6 +595,9 @@ function updateDescriptionField() {
   descriptionField.hidden = !isOther;
   descriptionInput.disabled = !isOther || state.people.length === 0;
   descriptionInput.required = isOther;
+  monthField.hidden = isOther;
+  monthInput.disabled = isOther || state.people.length === 0;
+  monthInput.required = !isOther;
   if (!isOther) descriptionInput.value = '';
 }
 
@@ -608,7 +615,7 @@ expenseForm.addEventListener('submit', async (e) => {
     (i) => i.value
   );
 
-  if (!category || !amount || amount <= 0 || !paidBy || !month) return;
+  if (!category || !amount || amount <= 0 || !paidBy || (category !== 'other' && !month)) return;
   if (category === 'other' && (!description || description.length >= 24)) {
     descriptionInput.setCustomValidity('Enter a description shorter than 24 characters.');
     descriptionInput.reportValidity();
@@ -620,7 +627,8 @@ expenseForm.addEventListener('submit', async (e) => {
     return;
   }
 
-  const year = currentEasternDate().slice(0, 4);
+  const today = currentEasternDate();
+  const year = today.slice(0, 4);
   const expense = {
     id: uid(),
     desc: category === 'other' ? description : categoryLabel(category),
@@ -628,8 +636,8 @@ expenseForm.addEventListener('submit', async (e) => {
     amount,
     paidBy,
     splitAmong,
-    date: currentEasternDate(),
-    month: `${year}-${month}`,
+    date: today,
+    month: category === 'other' ? today.slice(0, 7) : `${year}-${month}`,
   };
 
   try {
@@ -692,14 +700,12 @@ function updatePaymentLimit() {
 
 function renderPaymentOptions() {
   const balance = computeBalances();
-  const debtors = state.people.filter((name) => (balance[name] || 0) < -0.005 && (currentUser?.isDeveloper || name === currentUser?.name));
   const creditors = state.people.filter((name) => (balance[name] || 0) > 0.005);
-  const previousFrom = paymentFrom.value;
   const previousTo = paymentTo.value;
 
-  populateSelect(paymentFrom, debtors, previousFrom, currentUser?.isDeveloper ? 'No one owes money' : "You're not in debt");
-  populateSelect(paymentTo, creditors, previousTo, 'No one is owed money');
-  paymentFrom.disabled = debtors.length === 0 || !currentUser?.isDeveloper;
+  populateSelect(paymentFrom, currentUser?.name ? [currentUser.name] : [], currentUser?.name, 'Account unavailable');
+  populateSelect(paymentTo, creditors, previousTo, 'We dont need your charity');
+  paymentFrom.disabled = true;
   paymentTo.disabled = creditors.length === 0;
   updatePaymentLimit();
 }
@@ -1506,7 +1512,7 @@ authForm.addEventListener('submit', async (event) => {
     const response = await apiFetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: authUsername.value.trim(), password: authPassword.value }),
+      body: JSON.stringify({ name: authUsername.value.trim(), password: authPassword.value, remember: authRemember.checked }),
     });
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
