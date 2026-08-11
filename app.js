@@ -43,9 +43,28 @@ const settingsMenuClose = document.getElementById('settings-menu-close');
 const accountNameForm = document.getElementById('account-name-form');
 const accountNameInput = document.getElementById('account-name-input');
 const accountNameError = document.getElementById('account-name-error');
+const themeToggle = document.getElementById('theme-toggle');
 let authMode = 'sign-in';
 let currentUser = null;
-const APP_VERSION = '20260810-mobile-spacing-r37';
+const APP_VERSION = '20260810-buckeye-dark-r38';
+const THEME_KEY = 'payme-color-theme';
+
+function applyTheme(theme) {
+  const isDark = theme === 'dark';
+  document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
+  document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+  if (themeToggle) {
+    themeToggle.checked = isDark;
+    themeToggle.setAttribute('aria-checked', String(isDark));
+  }
+}
+
+applyTheme(localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light');
+themeToggle.addEventListener('change', () => {
+  const theme = themeToggle.checked ? 'dark' : 'light';
+  localStorage.setItem(THEME_KEY, theme);
+  applyTheme(theme);
+});
 
 const DEFAULT_STATE = {
   people: [],

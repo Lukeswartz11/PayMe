@@ -252,6 +252,38 @@ body.settings-open .settings-menu-card { touch-action: pan-y; }
 .settings-danger-button { border-color: var(--stamp-red-ink); }
 .settings-bank-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; }
 .settings-payment-note { margin: 0.8rem 0 0; color: var(--ink-soft); font-size: 0.78rem; line-height: 1.4; }
+.theme-switch { flex: 0 0 auto; margin: 0; cursor: pointer; }
+.theme-switch input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.theme-switch-track {
+  position: relative;
+  width: 4.4rem;
+  height: 2.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.55rem;
+  overflow: hidden;
+  border: 2px solid var(--paper-line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink-soft);
+  transition: background 180ms ease, border-color 180ms ease;
+}
+.theme-switch-sun, .theme-switch-moon { position: relative; z-index: 1; font: 700 0.9rem var(--font-mono); }
+.theme-switch-thumb {
+  position: absolute;
+  z-index: 2;
+  left: 0.2rem;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 50%;
+  background: var(--stamp-red);
+  box-shadow: 0 2px 7px var(--shadow);
+  transition: transform 180ms ease, background 180ms ease;
+}
+.theme-switch input:checked + .theme-switch-track { border-color: var(--stamp-red-ink); background: var(--ink); }
+.theme-switch input:checked + .theme-switch-track .theme-switch-thumb { transform: translateX(2.05rem); background: var(--stamp-red-ink); }
+.theme-switch input:focus-visible + .theme-switch-track { outline: 3px solid color-mix(in srgb, var(--stamp-red) 45%, transparent); outline-offset: 3px; }
 .pay-now-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; margin-top: 1rem; }
 .pay-now-actions .settings-action-button { width: 100%; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
@@ -1196,6 +1228,62 @@ input:focus-visible, select:focus-visible, button:focus-visible {
   border-radius: 8px;
   box-shadow: 0 6px 20px var(--shadow);
 }
+
+/* ============================================================
+   BUCKEYE DARK MODE
+   ============================================================ */
+html[data-theme="dark"] {
+  --paper: #111315;
+  --paper-dim: #22262A;
+  --paper-line: #3D4248;
+  --ink: #F4F5F6;
+  --ink-soft: #C5C8CC;
+  --ink-faint: #92979D;
+  --stamp-red: #BA0C2F;
+  --stamp-red-ink: #FF4D6D;
+  --stamp-green: #64696F;
+  --stamp-green-ink: #AEB2B7;
+  --brass: #BA0C2F;
+  --brass-ink: #FF4D6D;
+  --card: #1A1D20;
+  --shadow: rgba(0, 0, 0, 0.48);
+}
+html[data-theme="dark"] body {
+  background-image: url("Brutus_Front.png"), radial-gradient(circle at top, #4A0716 0%, #17191C 44%, #08090A 100%);
+  color: var(--ink);
+}
+html[data-theme="dark"] :is(.cover, .panel, .auth-card, .desk-footer) { background: rgba(20, 23, 26, 0.94); }
+html[data-theme="dark"] .tab-list {
+  background: rgba(14, 16, 18, 0.94);
+  border-color: var(--paper-line);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.42), inset 0 1px rgba(255, 255, 255, 0.05);
+}
+html[data-theme="dark"] .tab-button:hover:not([aria-selected="true"]) { background: #24282C; }
+html[data-theme="dark"] :is(input[type="text"], input[type="password"], input[type="number"], input[type="date"], input[type="month"], select) {
+  color: var(--ink);
+  background: #15181B;
+  border-color: #555B62;
+}
+html[data-theme="dark"] input::placeholder { color: #777D84; }
+html[data-theme="dark"] :is(.settings-menu, .developer-menu) { background: rgba(0, 0, 0, 0.76); }
+html[data-theme="dark"] :is(.settings-menu-card, .developer-menu-card) { background: #15181B; border-color: #454A50; }
+html[data-theme="dark"] .settings-action-button,
+html[data-theme="dark"] .account-name-controls button,
+html[data-theme="dark"] .developer-account-form button { background: #1A1D20; color: #FF6A84; border-color: #BA0C2F; }
+html[data-theme="dark"] :is(.settings-action-button, .account-name-controls button):hover { background: #BA0C2F; color: #FFF; }
+html[data-theme="dark"] .split-checkboxes label:has(input:checked) { background: #431220; border-color: #E63859; }
+html[data-theme="dark"] :is(.utility-log-date, .sleek-log-date) { background: #292D31; }
+html[data-theme="dark"] :is(.utility-log-row, .sleek-log-row) { background: #1A1D20; }
+html[data-theme="dark"] .log-more-button:hover { background: #262A2E; }
+html[data-theme="dark"] .receipt-category { background: #202428; }
+html[data-theme="dark"] .budget-chart { background: #171A1D; }
+html[data-theme="dark"] .budget-grid-lines span { border-color: #3A3E43; }
+html[data-theme="dark"] .budget-breakdown { background: #1B1E22; }
+html[data-theme="dark"] .budget-breakdown-track { background: #30353A; }
+html[data-theme="dark"] .budget-bar-button.selected .budget-bar-fill { background: linear-gradient(180deg, #F24B6A, #BA0C2F); }
+html[data-theme="dark"] .receipt-edge { filter: brightness(0.62); }
+html[data-theme="dark"] .credit-score { background: linear-gradient(135deg, #34383D, #62676D); }
+html[data-theme="dark"] ::selection { background: #BA0C2F; color: #FFF; }
 
 /* ============================================================
    RESPONSIVE
