@@ -45,7 +45,7 @@ const accountNameInput = document.getElementById('account-name-input');
 const accountNameError = document.getElementById('account-name-error');
 let authMode = 'sign-in';
 let currentUser = null;
-const APP_VERSION = '20260810-session-reminders-r22';
+const APP_VERSION = '20260810-charity-placeholder-r24';
 
 const DEFAULT_STATE = {
   people: [],
@@ -700,18 +700,26 @@ function updatePaymentLimit() {
 
 function renderPaymentOptions() {
   const balance = computeBalances();
-  const creditors = state.people.filter((name) => (balance[name] || 0) > 0.005);
+  const debtors = state.people.filter((name) => (balance[name] || 0) < -0.005);
+  const previousFrom = paymentFrom.value;
   const previousTo = paymentTo.value;
+  const accountOwner = currentUser?.name || '';
+  const paymentSenders = currentUser?.isDeveloper
+    ? [accountOwner, ...debtors.filter((name) => name !== accountOwner)].filter(Boolean)
+    : accountOwner ? [accountOwner] : [];
 
-  populateSelect(paymentFrom, currentUser?.name ? [currentUser.name] : [], currentUser?.name, 'Account unavailable');
-  populateSelect(paymentTo, creditors, previousTo, 'We dont need your charity');
-  paymentFrom.disabled = true;
+  populateSelect(paymentFrom, paymentSenders, previousFrom || accountOwner, 'Account unavailable');
+  const creditors = (balance[paymentFrom.value] || 0) < -0.005
+    ? state.people.filter((name) => (balance[name] || 0) > 0.005)
+    : [];
+  populateSelect(paymentTo, creditors, previousTo, 'Keep your charity');
+  paymentFrom.disabled = !currentUser?.isDeveloper || paymentSenders.length < 2;
   paymentTo.disabled = creditors.length === 0;
   updatePaymentLimit();
 }
 
 paymentFrom.addEventListener('change', () => {
-  updatePaymentLimit();
+  renderPaymentOptions();
 });
 paymentTo.addEventListener('change', () => {
   updatePaymentLimit();
