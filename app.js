@@ -45,7 +45,7 @@ const accountNameInput = document.getElementById('account-name-input');
 const accountNameError = document.getElementById('account-name-error');
 let authMode = 'sign-in';
 let currentUser = null;
-const APP_VERSION = '20260810-sleek-logs-r34';
+const APP_VERSION = '20260810-mobile-spacing-r37';
 
 const DEFAULT_STATE = {
   people: [],
@@ -704,12 +704,25 @@ async function deleteExpense(id) {
 // =============================================================
 // PERSONAL BUDGET
 // =============================================================
-const BUDGET_CATEGORIES = ['groceries', 'eat-out', 'rent', 'other'];
+const BUDGET_CATEGORIES = ['groceries', 'eat-out', 'rent', 'fun', 'other'];
 let selectedBudgetMonth = null;
 
 function budgetCategoryLabel(category) {
-  return category === 'eat-out' ? 'Eat Out' : categoryLabel(category);
+  return category === 'eat-out' ? 'Resturants' : categoryLabel(category);
 }
+
+function autofillBudgetDescription() {
+  const previousAutofill = budgetDescription.dataset.autofill || '';
+  const nextAutofill = budgetCategory.value === 'groceries'
+    ? 'Groceries'
+    : budgetCategory.value === 'rent' ? 'Rent' : '';
+  if (nextAutofill) budgetDescription.value = nextAutofill;
+  else if (budgetDescription.value === previousAutofill) budgetDescription.value = '';
+  budgetDescription.dataset.autofill = nextAutofill;
+}
+
+budgetCategory.addEventListener('change', autofillBudgetDescription);
+autofillBudgetDescription();
 
 function budgetChartMaximum(maximumCents) {
   const maximumDollars = maximumCents / 100;
@@ -752,6 +765,7 @@ budgetForm.addEventListener('submit', async (event) => {
     state.budgetExpenses.unshift(savedExpense);
     saveLocalState();
     budgetDescription.value = '';
+    autofillBudgetDescription();
     budgetAmount.value = '';
     budgetDate.value = currentEasternDate();
     renderBudget();
@@ -1097,6 +1111,7 @@ function renderActivityLog() {
     logPaymentMore.hidden = true;
   }
   logPaymentSection?.classList.toggle('expanded', isPaymentLogExpanded);
+  logPaymentList.classList.toggle('expanded', isPaymentLogExpanded);
 
   const allExpenses = [...state.expenses].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   const utilityExpenses = allExpenses.filter((expense) => ['gas', 'electric', 'internet'].includes(expenseCategory(expense)));
@@ -1138,6 +1153,7 @@ function renderActivityLog() {
     logExpenseMore.hidden = true;
   }
   logExpenseSection?.classList.toggle('expanded', isExpenseLogExpanded);
+  logExpenseList.classList.toggle('expanded', isExpenseLogExpanded);
 
   renderExpenseLog(
     allExpenses.filter((expense) => expenseCategory(expense) === 'other'),
@@ -1146,6 +1162,7 @@ function renderActivityLog() {
     logOtherMore,
     isOtherLogExpanded
   );
+  logOtherList.classList.toggle('expanded', isOtherLogExpanded);
 
 }
 

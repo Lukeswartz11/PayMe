@@ -607,7 +607,7 @@ app.post('/api/budget-expenses', requireAuth, async (req, res) => {
     const amount = Number(req.body?.amount);
     const date = String(req.body?.date || '');
     if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
-    if (!req.body?.id || !['groceries', 'eat-out', 'rent', 'other'].includes(category)) return res.status(400).json({ error: 'Choose a valid budget category.' });
+    if (!req.body?.id || !['groceries', 'eat-out', 'rent', 'fun', 'other'].includes(category)) return res.status(400).json({ error: 'Choose a valid budget category.' });
     if (!desc || desc.length > 60) return res.status(400).json({ error: 'Enter a description up to 60 characters.' });
     if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'Enter a valid expense amount.' });
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Choose a valid expense date.' });

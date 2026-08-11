@@ -622,6 +622,7 @@ input:focus-visible, select:focus-visible, button:focus-visible {
   max-height: 19rem;
   overflow-y: auto;
 }
+.log-list.expanded { max-height: 42rem; }
 @media (min-width: 900px) {
   .log-sections {
     grid-template-columns: 1fr 1fr;
@@ -715,6 +716,7 @@ input:focus-visible, select:focus-visible, button:focus-visible {
 .budget-log-badge-groceries { background: #3C7A57; }
 .budget-log-badge-eat-out { background: #D07A24; }
 .budget-log-badge-rent { background: #4B5FA8; }
+.budget-log-badge-fun { background: #A4438E; }
 .budget-log-badge-other { background: #777; }
 .sleek-log-description { overflow-wrap: anywhere; font-size: 0.98rem; color: var(--ink); }
 .sleek-log-route { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; color: var(--ink-faint); font-size: 0.8rem; }
@@ -874,6 +876,7 @@ input:focus-visible, select:focus-visible, button:focus-visible {
 .budget-category-groceries { border-top-color: #3C7A57; }
 .budget-category-eat-out { border-top-color: #D07A24; }
 .budget-category-rent { border-top-color: #4B5FA8; }
+.budget-category-fun { border-top-color: #A4438E; }
 .budget-category-other { border-top-color: #777; }
 .budget-category-utilities { border-top-color: #BB0000; }
 .budget-summary-list { max-height: none; }
@@ -912,9 +915,18 @@ input:focus-visible, select:focus-visible, button:focus-visible {
   align-items: stretch;
   gap: 0.8rem;
   overflow-x: auto;
-  border-left: 2px solid var(--ink);
   border-bottom: 0;
   padding: 0 0.35rem;
+}
+.budget-chart-plot::before {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  top: 1.75rem;
+  bottom: 3.6rem;
+  left: 0;
+  border-left: 2px solid var(--ink);
+  pointer-events: none;
 }
 .budget-chart-plot::after {
   content: '';
@@ -1013,6 +1025,7 @@ input:focus-visible, select:focus-visible, button:focus-visible {
 .budget-breakdown-groceries { --budget-breakdown-color: #3C7A57; }
 .budget-breakdown-eat-out { --budget-breakdown-color: #D07A24; }
 .budget-breakdown-rent { --budget-breakdown-color: #4B5FA8; }
+.budget-breakdown-fun { --budget-breakdown-color: #A4438E; }
 .budget-breakdown-other { --budget-breakdown-color: #777; }
 .budget-breakdown-utilities { --budget-breakdown-color: #BB0000; }
 .utility-breakdown-gas { --budget-breakdown-color: #A56A16; }
@@ -1195,7 +1208,25 @@ input:focus-visible, select:focus-visible, button:focus-visible {
   .receipt-head, .receipt-row { grid-template-columns: 1.6fr 1fr auto; }
   .receipt-split { display: none; }
   .receipt-category-grid { grid-template-columns: 1fr; }
-  .budget-chart, .budget-y-axis, .budget-chart-plot { min-height: 15rem; height: 15rem; }
+  .budget-chart {
+    grid-template-columns: 3.2rem minmax(0, 1fr);
+    min-height: 0;
+    height: auto;
+    padding: 0.7rem 0.35rem 0.35rem;
+  }
+  .budget-y-axis, .budget-chart-plot { min-height: 14rem; height: 14rem; }
+  .budget-y-axis { padding: 1.55rem 0.25rem 3.4rem 0; font-size: 0.56rem; }
+  .budget-axis-title { right: 0.25rem; }
+  .budget-chart-plot { min-width: 0; gap: 0.25rem; padding: 0 0.1rem; }
+  .budget-chart-plot::before { top: 1.55rem; bottom: 3.4rem; }
+  .budget-chart-plot::after { bottom: 3.4rem; }
+  .budget-grid-lines { inset: 1.55rem 0 3.4rem; }
+  .budget-bar-item { flex: 1 0 3.25rem; min-width: 3.25rem; }
+  .budget-bar-button { grid-template-rows: 1.1rem minmax(0, 1fr) 3rem; gap: 0.25rem; padding: 0.15rem; }
+  .budget-bar-amount { font-size: 0.58rem; }
+  .budget-bar-track { width: min(2.5rem, 78%); }
+  .budget-bar-label { min-height: 0; overflow-wrap: anywhere; font-size: 0.58rem; line-height: 1.05; }
+  .budget-bar-label { transform: translateY(-0.35rem); }
 }
 
 /* iPhone-sized screens: 375px through 430px wide */

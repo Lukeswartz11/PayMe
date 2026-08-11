@@ -58,7 +58,7 @@
 
     <nav class="tab-list" aria-label="Ledger sections" role="tablist">
       <button id="tab-balance" class="tab-button" type="button" role="tab" aria-selected="true" aria-controls="panel-balance" data-tab="balance">Balance</button>
-      <button id="tab-log" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-log" data-tab="log">Log</button>
+      <button id="tab-log" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-log" data-tab="log">Split Log</button>
       <button id="tab-pay" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-pay" data-tab="pay">Pay</button>
       <button id="tab-budget" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-budget" data-tab="budget">Budget</button>
       <button id="tab-tally" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-tally" data-tab="tally">Receipts</button>
@@ -153,7 +153,7 @@
         <section id="budget-panel-log" class="group-subpanel" role="tabpanel" aria-labelledby="budget-tab-log">
           <h3 class="receipt-subtitle">Log a personal expense</h3>
           <form id="budget-form" class="expense-form budget-form">
-            <div class="field"><label for="budget-category">Category</label><select id="budget-category" required><option value="groceries">Groceries</option><option value="eat-out">Eat Out</option><option value="rent">Rent</option><option value="other">Other</option></select></div>
+            <div class="field"><label for="budget-category">Category</label><select id="budget-category" required><option value="groceries">Groceries</option><option value="eat-out">Resturants</option><option value="rent">Rent</option><option value="fun">Fun</option><option value="other">Other</option></select></div>
             <div class="field field-other-description"><label for="budget-description">Description</label><input id="budget-description" type="text" maxlength="60" placeholder="What did you buy?" required></div>
             <div class="field field-amount"><label for="budget-amount">Amount</label><div class="amount-wrap"><span>$</span><input id="budget-amount" type="number" min="0.01" step="0.01" placeholder="0.00" required></div></div>
             <div class="field"><label for="budget-date">Date</label><input id="budget-date" type="date" required></div>
@@ -317,6 +317,6 @@
     </div>
   </section>
 
-<script src="app.js?v=20260810-sleek-logs-r34"></script>
+<script src="app.js?v=20260810-mobile-spacing-r37"></script>
 </body>
 </html>
