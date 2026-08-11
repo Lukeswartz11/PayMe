@@ -603,8 +603,9 @@ input:focus-visible, select:focus-visible, button:focus-visible {
 }
 .split-checkboxes input { accent-color: var(--stamp-red); }
 .expense-form .btn-wide { grid-column: 1 / -1; margin-top: 0.4rem; }
-.expense-form.budget-form .budget-date-field { grid-column: auto; width: min(100%, 12rem); }
-.budget-form .budget-date-field input { min-width: 0; }
+.expense-form.budget-form { min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.expense-form.budget-form > .field { min-width: 0; width: 100%; max-width: none; grid-column: auto; }
+.budget-form .budget-date-field input { width: 100%; min-width: 0; max-width: 100%; }
 .payment-form .btn-wide { grid-column: 1 / -1; margin-top: 0.4rem; }
 
 .payment-list {
@@ -783,6 +784,7 @@ input:focus-visible, select:focus-visible, button:focus-visible {
 .sleek-log-amount { font: 700 1.05rem var(--font-mono); color: var(--stamp-red-ink); white-space: nowrap; }
 .sleek-log-row .log-delete-button { grid-column: 1 / -1; width: 100%; }
 #log-other-list, #log-payment-list, #budget-summary-list { list-style: none; padding-left: 0; }
+#log-expense-list, #log-other-list, #log-payment-list, #budget-summary-list { max-height: none; overflow: visible; }
 .monthly-log-group {
   list-style: none;
   margin-bottom: 0.75rem;
@@ -881,6 +883,8 @@ input:focus-visible, select:focus-visible, button:focus-visible {
 .receipt-tabs, .section-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.45rem; margin: 0.25rem 0 1.25rem; padding: 0.45rem; border: 1.5px solid var(--paper-line); border-radius: 6px; background: var(--card); }
 .section-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .section-tabs.budget-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.budget-tabs { width: 100%; min-width: 0; }
+.budget-tabs .section-tab-button { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
 .receipt-tab-button, .section-tab-button { padding: 0.65rem 0.45rem; border: 1.5px solid transparent; border-radius: 4px; background: transparent; color: var(--ink-soft); font: 700 0.72rem var(--font-mono); cursor: pointer; }
 .receipt-tab-button:hover, .section-tab-button:hover { border-color: var(--paper-line); color: var(--ink); }
 .receipt-tab-button[aria-selected="true"], .section-tab-button[aria-selected="true"] { border-color: var(--stamp-red-ink); background: var(--stamp-red); color: var(--paper); }
@@ -1438,6 +1442,8 @@ html[data-theme="dark"] ::selection { background: #BA0C2F; color: #FFF; }
   .receipt-tabs { grid-template-columns: 1fr 1fr; }
   .expense-form { grid-template-columns: 1fr; }
   .payment-form { grid-template-columns: 1fr; }
+  .expense-form.budget-form { grid-template-columns: 1fr; }
+  .expense-form.budget-form .budget-date-field { width: 100%; }
   .utility-log-row { padding: 0.8rem; }
   .utility-log-amount { font-size: 0.95rem; }
   .sleek-log-row { padding: 0.8rem; }

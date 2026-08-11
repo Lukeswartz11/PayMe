@@ -46,7 +46,7 @@ const accountNameError = document.getElementById('account-name-error');
 const themeToggle = document.getElementById('theme-toggle');
 let authMode = 'sign-in';
 let currentUser = null;
-const APP_VERSION = '20260810-log-month-fixes-r41';
+const APP_VERSION = '20260810-budget-form-r43';
 const THEME_KEY = 'payme-color-theme';
 
 function applyTheme(theme) {
@@ -745,9 +745,7 @@ function logMonthKeys(entries, keyFunction = logMonthKey) {
 }
 
 function visibleLogEntries(entries, expanded, keyFunction = logMonthKey) {
-  if (expanded) return entries;
-  const visibleMonths = new Set(logMonthKeys(entries, keyFunction).slice(0, LOG_PREVIEW_COUNT));
-  return entries.filter((entry) => visibleMonths.has(keyFunction(entry)));
+  return entries;
 }
 
 function wrapLogRowsByMonth(list, sectionKey) {
@@ -1201,6 +1199,7 @@ function renderActivityLog() {
   }
   logPaymentSection?.classList.toggle('expanded', isPaymentLogExpanded);
   logPaymentList.classList.toggle('expanded', isPaymentLogExpanded);
+  logPaymentMore.hidden = true;
 
   const allExpenses = [...state.expenses].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   const utilityExpenses = allExpenses
@@ -1249,6 +1248,7 @@ function renderActivityLog() {
   }
   logExpenseSection?.classList.toggle('expanded', isExpenseLogExpanded);
   logExpenseList.classList.toggle('expanded', isExpenseLogExpanded);
+  logExpenseMore.hidden = true;
 
   renderExpenseLog(
     allExpenses.filter((expense) => expenseCategory(expense) === 'other'),
@@ -1296,6 +1296,7 @@ function renderExpenseLog(expenses, list, empty, moreButton, expanded, sectionKe
   const monthCount = logMonthKeys(expenses).length;
   moreButton.hidden = monthCount <= LOG_PREVIEW_COUNT;
   if (!moreButton.hidden) moreButton.textContent = expanded ? 'Show less' : `View ${monthCount - LOG_PREVIEW_COUNT} more months`;
+  moreButton.hidden = true;
 }
 
 function addHoldToRevealDelete(row) {
