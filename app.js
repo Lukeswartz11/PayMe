@@ -46,7 +46,7 @@ const accountNameError = document.getElementById('account-name-error');
 const themeToggle = document.getElementById('theme-toggle');
 let authMode = 'sign-in';
 let currentUser = null;
-const APP_VERSION = '20260810-buckeye-dark-r38';
+const APP_VERSION = '20260810-log-month-fixes-r41';
 const THEME_KEY = 'payme-color-theme';
 
 function applyTheme(theme) {
@@ -725,6 +725,69 @@ async function deleteExpense(id) {
 // =============================================================
 const BUDGET_CATEGORIES = ['groceries', 'eat-out', 'rent', 'fun', 'other'];
 let selectedBudgetMonth = null;
+const openLogMonths = {
+  budget: new Set(),
+  payments: new Set(),
+  utilities: new Set(),
+  other: new Set(),
+};
+
+function logMonthKey(entry) {
+  return String(entry.date || entry.month || 'unknown').slice(0, 7) || 'unknown';
+}
+
+function utilityLogMonthKey(entry) {
+  return String(entry.month || entry.date || 'unknown').slice(0, 7) || 'unknown';
+}
+
+function logMonthKeys(entries, keyFunction = logMonthKey) {
+  return [...new Set(entries.map(keyFunction))];
+}
+
+function visibleLogEntries(entries, expanded, keyFunction = logMonthKey) {
+  if (expanded) return entries;
+  const visibleMonths = new Set(logMonthKeys(entries, keyFunction).slice(0, LOG_PREVIEW_COUNT));
+  return entries.filter((entry) => visibleMonths.has(keyFunction(entry)));
+}
+
+function wrapLogRowsByMonth(list, sectionKey) {
+  const rows = [...list.children];
+  const groups = new Map();
+  rows.forEach((row) => {
+    const month = row.dataset.month || 'unknown';
+    if (!groups.has(month)) groups.set(month, []);
+    groups.get(month).push(row);
+  });
+  list.innerHTML = '';
+  groups.forEach((monthRows, month) => {
+    const total = monthRows.reduce((sum, row) => sum + Number(row.dataset.amountCents || 0), 0);
+    const group = document.createElement('li');
+    group.className = 'monthly-log-group';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'monthly-log-toggle';
+    const isOpen = openLogMonths[sectionKey].has(month);
+    button.setAttribute('aria-expanded', String(isOpen));
+    button.innerHTML = `<span class="monthly-log-title">${formatBillingMonth(month)}</span><span class="monthly-log-summary">${monthRows.length} ${monthRows.length === 1 ? 'entry' : 'entries'} · ${money(total / 100)}</span><span class="monthly-log-chevron" aria-hidden="true">⌄</span>`;
+    const contents = document.createElement('ol');
+    contents.className = 'monthly-log-entries';
+    contents.hidden = !isOpen;
+    monthRows.forEach((row) => contents.appendChild(row));
+    button.addEventListener('click', () => {
+      const opening = contents.hidden;
+      contents.hidden = !opening;
+      button.setAttribute('aria-expanded', String(opening));
+      group.classList.toggle('is-open', opening);
+      if (opening) openLogMonths[sectionKey].add(month);
+      else openLogMonths[sectionKey].delete(month);
+      list.classList.toggle('has-open-month', openLogMonths[sectionKey].size > 0);
+    });
+    group.classList.toggle('is-open', isOpen);
+    group.append(button, contents);
+    list.appendChild(group);
+  });
+  list.classList.toggle('has-open-month', openLogMonths[sectionKey].size > 0);
+}
 
 function budgetCategoryLabel(category) {
   return category === 'eat-out' ? 'Resturants' : categoryLabel(category);
@@ -811,6 +874,8 @@ function renderBudget() {
   expenses.forEach((expense) => {
     const item = document.createElement('li');
     item.className = 'log-row sleek-log-row budget-log-card';
+    item.dataset.month = logMonthKey(expense);
+    item.dataset.amountCents = String(Math.round(Number(expense.amount) * 100));
     item.innerHTML = `<div class="sleek-log-content"><div class="sleek-log-meta"><span class="sleek-log-date">${formatDate(expense.date)}</span><span class="sleek-log-badge budget-log-badge-${expense.category}">${escapeHtml(budgetCategoryLabel(expense.category))}</span></div><strong class="sleek-log-description">${escapeHtml(expense.desc)}</strong></div><span class="sleek-log-amount">${money(expense.amount)}</span>`;
     const deleteButton = document.createElement('button');
     deleteButton.type = 'button';
@@ -822,6 +887,7 @@ function renderBudget() {
     addHoldToRevealDelete(item);
     budgetSummaryList.appendChild(item);
   });
+  wrapLogRowsByMonth(budgetSummaryList, 'budget');
 
   const months = new Map();
   const emptyMonthTotals = () => ({ ...Object.fromEntries(BUDGET_CATEGORIES.map((category) => [category, 0])), utilities: 0 });
@@ -1104,10 +1170,12 @@ function renderActivityLog() {
   const payments = [...state.settlements].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   logPaymentList.innerHTML = '';
   logPaymentEmpty.style.display = payments.length ? 'none' : 'block';
-  const paymentPreview = isPaymentLogExpanded ? payments : payments.slice(0, LOG_PREVIEW_COUNT);
+  const paymentPreview = visibleLogEntries(payments, isPaymentLogExpanded);
   paymentPreview.forEach((payment) => {
     const item = document.createElement('li');
     item.className = 'log-row sleek-log-row payment-log-card';
+    item.dataset.month = logMonthKey(payment);
+    item.dataset.amountCents = String(Math.round(Number(payment.amount) * 100));
     item.innerHTML = `<div class="sleek-log-content"><div class="sleek-log-meta"><span class="sleek-log-date">${formatDate(payment.date)}</span><span class="sleek-log-badge payment-log-badge">Payment</span></div><strong class="sleek-log-description">${escapeHtml(payment.desc || 'Payment')}</strong><span class="sleek-log-route"><b>${escapeHtml(payment.from)}</b><span aria-hidden="true">→</span><b>${escapeHtml(payment.to)}</b></span></div><span class="sleek-log-amount">${money(payment.amount)}</span>`;
     if (currentUser?.isDeveloper || payment.createdBy === currentUser?.id) {
       const deleteButton = document.createElement('button');
@@ -1121,11 +1189,13 @@ function renderActivityLog() {
     }
     logPaymentList.appendChild(item);
   });
-  if (payments.length > LOG_PREVIEW_COUNT) {
+  wrapLogRowsByMonth(logPaymentList, 'payments');
+  const paymentMonthCount = logMonthKeys(payments).length;
+  if (paymentMonthCount > LOG_PREVIEW_COUNT) {
     logPaymentMore.hidden = false;
     logPaymentMore.textContent = isPaymentLogExpanded
       ? 'Show less'
-      : `View ${payments.length - LOG_PREVIEW_COUNT} more payments`;
+      : `View ${paymentMonthCount - LOG_PREVIEW_COUNT} more months`;
   } else {
     logPaymentMore.hidden = true;
   }
@@ -1133,11 +1203,13 @@ function renderActivityLog() {
   logPaymentList.classList.toggle('expanded', isPaymentLogExpanded);
 
   const allExpenses = [...state.expenses].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-  const utilityExpenses = allExpenses.filter((expense) => ['gas', 'electric', 'internet'].includes(expenseCategory(expense)));
+  const utilityExpenses = allExpenses
+    .filter((expense) => ['gas', 'electric', 'internet'].includes(expenseCategory(expense)))
+    .sort((a, b) => utilityLogMonthKey(b).localeCompare(utilityLogMonthKey(a)) || (b.date || '').localeCompare(a.date || ''));
 
   logExpenseList.innerHTML = '';
   logExpenseEmpty.style.display = utilityExpenses.length ? 'none' : 'block';
-  const expensePreview = isExpenseLogExpanded ? utilityExpenses : utilityExpenses.slice(0, LOG_PREVIEW_COUNT);
+  const expensePreview = visibleLogEntries(utilityExpenses, isExpenseLogExpanded, utilityLogMonthKey);
   expensePreview.forEach((expense) => {
     const splitLabel =
       expense.splitAmong.length === state.people.length
@@ -1148,6 +1220,8 @@ function renderActivityLog() {
 
     const item = document.createElement('li');
     item.className = 'log-row utility-log-row';
+    item.dataset.month = utilityLogMonthKey(expense);
+    item.dataset.amountCents = String(Math.round(Number(expense.amount) * 100));
     item.innerHTML = `<div class="log-entry-details"><span class="log-date">${formatDate(expense.date)}</span><div class="log-entry-row"><span class="log-entry-main">${escapeHtml(expense.paidBy)}</span><span class="log-entry-split">→ ${escapeHtml(splitLabel)}</span></div><span>${categoryLabel(expenseCategory(expense))}</span></div><span class="log-amount">${money(expense.amount)}</span>`;
     const category = expenseCategory(expense);
     item.innerHTML = `<div class="utility-log-content"><div class="utility-log-meta"><span class="utility-log-date">${formatDate(expense.date)}</span><span class="utility-log-category utility-log-category-${category}">${categoryLabel(category)}</span></div><div class="utility-log-route"><strong>${escapeHtml(expense.paidBy)}</strong><span>paid for ${escapeHtml(splitLabel)}</span></div></div><span class="utility-log-amount">${money(expense.amount)}</span>`;
@@ -1163,11 +1237,13 @@ function renderActivityLog() {
     }
     logExpenseList.appendChild(item);
   });
-  if (utilityExpenses.length > LOG_PREVIEW_COUNT) {
+  wrapLogRowsByMonth(logExpenseList, 'utilities');
+  const utilityMonthCount = logMonthKeys(utilityExpenses, utilityLogMonthKey).length;
+  if (utilityMonthCount > LOG_PREVIEW_COUNT) {
     logExpenseMore.hidden = false;
     logExpenseMore.textContent = isExpenseLogExpanded
       ? 'Show less'
-      : `View ${utilityExpenses.length - LOG_PREVIEW_COUNT} more expenses`;
+      : `View ${utilityMonthCount - LOG_PREVIEW_COUNT} more months`;
   } else {
     logExpenseMore.hidden = true;
   }
@@ -1179,16 +1255,17 @@ function renderActivityLog() {
     logOtherList,
     logOtherEmpty,
     logOtherMore,
-    isOtherLogExpanded
+    isOtherLogExpanded,
+    'other'
   );
   logOtherList.classList.toggle('expanded', isOtherLogExpanded);
 
 }
 
-function renderExpenseLog(expenses, list, empty, moreButton, expanded) {
+function renderExpenseLog(expenses, list, empty, moreButton, expanded, sectionKey) {
   list.innerHTML = '';
   empty.style.display = expenses.length ? 'none' : 'block';
-  const preview = expanded ? expenses : expenses.slice(0, LOG_PREVIEW_COUNT);
+  const preview = visibleLogEntries(expenses, expanded);
   preview.forEach((expense) => {
     const splitAmong = Array.isArray(expense.splitAmong) ? expense.splitAmong : [];
     const splitLabel = splitAmong.length === state.people.length
@@ -1196,6 +1273,8 @@ function renderExpenseLog(expenses, list, empty, moreButton, expanded) {
       : splitAmong.length === 2 ? splitAmong.join(' & ') : splitAmong.join(', ');
     const item = document.createElement('li');
     item.className = 'log-row sleek-log-row other-log-card';
+    item.dataset.month = logMonthKey(expense);
+    item.dataset.amountCents = String(Math.round(Number(expense.amount) * 100));
     const expenseLabel = expenseCategory(expense) === 'other' && expense.desc
       ? expense.desc
       : categoryLabel(expenseCategory(expense));
@@ -1213,8 +1292,10 @@ function renderExpenseLog(expenses, list, empty, moreButton, expanded) {
     }
     list.appendChild(item);
   });
-  moreButton.hidden = expenses.length <= LOG_PREVIEW_COUNT;
-  if (!moreButton.hidden) moreButton.textContent = expanded ? 'Show less' : `View ${expenses.length - LOG_PREVIEW_COUNT} more expenses`;
+  wrapLogRowsByMonth(list, sectionKey);
+  const monthCount = logMonthKeys(expenses).length;
+  moreButton.hidden = monthCount <= LOG_PREVIEW_COUNT;
+  if (!moreButton.hidden) moreButton.textContent = expanded ? 'Show less' : `View ${monthCount - LOG_PREVIEW_COUNT} more months`;
 }
 
 function addHoldToRevealDelete(row) {
