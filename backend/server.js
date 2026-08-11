@@ -86,6 +86,7 @@ const defaultData = {
   people: [],
   expenses: [],
   settlements: [],
+  budgetExpenses: [],
   users: [],
 };
 
@@ -122,6 +123,7 @@ function normalizeData(data) {
     people: Array.isArray(data?.people) ? data.people : defaultData.people,
     expenses: Array.isArray(data?.expenses) ? data.expenses : [],
     settlements: Array.isArray(data?.settlements) ? data.settlements : [],
+    budgetExpenses: Array.isArray(data?.budgetExpenses) ? data.budgetExpenses : [],
     users: Array.isArray(data?.users) ? data.users : [],
   };
 }
@@ -495,6 +497,7 @@ app.delete('/api/developer/accounts/:id', requireAuth, requireDeveloper, async (
     if (!user) return res.status(404).json({ error: 'Account not found.' });
     if (user.isDeveloper) return res.status(403).json({ error: 'The developer account cannot be deleted.' });
     data.users = data.users.filter((candidate) => candidate.id !== user.id);
+    data.budgetExpenses = data.budgetExpenses.filter((expense) => expense.ownerId !== user.id);
     data.people = data.people.filter((person) => person !== user.name);
     data.expenses.forEach((expense) => {
       if (expense.paidBy === user.name) expense.reminders = [];
@@ -588,10 +591,47 @@ app.post('/api/push/reminders/run', async (req, res) => {
 app.get('/api/state', requireAuth, async (req, res) => {
   try {
     const data = await readData();
-    res.json({ people: data.people, expenses: data.expenses, settlements: data.settlements });
+    res.json({ people: data.people, expenses: data.expenses, settlements: data.settlements, budgetExpenses: data.budgetExpenses.filter((expense) => expense.ownerId === req.userId) });
   } catch (error) {
     console.error('GET /api/state error:', error);
     res.status(500).json({ error: 'Could not read state.' });
+  }
+});
+
+app.post('/api/budget-expenses', requireAuth, async (req, res) => {
+  try {
+    const data = await readData();
+    const user = data.users.find((candidate) => candidate.id === req.userId);
+    const category = String(req.body?.category || '');
+    const desc = String(req.body?.desc || '').trim();
+    const amount = Number(req.body?.amount);
+    const date = String(req.body?.date || '');
+    if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
+    if (!req.body?.id || !['groceries', 'eat-out', 'rent', 'other'].includes(category)) return res.status(400).json({ error: 'Choose a valid budget category.' });
+    if (!desc || desc.length > 60) return res.status(400).json({ error: 'Enter a description up to 60 characters.' });
+    if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'Enter a valid expense amount.' });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Choose a valid expense date.' });
+    const expense = { id: String(req.body.id), ownerId: user.id, category, desc, amount: Math.round(amount * 100) / 100, date, createdAt: new Date().toISOString() };
+    data.budgetExpenses.unshift(expense);
+    await writeData(data);
+    res.status(201).json(expense);
+  } catch (error) {
+    console.error('POST /api/budget-expenses error:', error);
+    res.status(500).json({ error: 'Could not save personal expense.' });
+  }
+});
+
+app.delete('/api/budget-expenses/:id', requireAuth, async (req, res) => {
+  try {
+    const data = await readData();
+    const expense = data.budgetExpenses.find((candidate) => candidate.id === req.params.id && candidate.ownerId === req.userId);
+    if (!expense) return res.status(404).json({ error: 'Personal expense not found.' });
+    data.budgetExpenses = data.budgetExpenses.filter((candidate) => candidate !== expense);
+    await writeData(data);
+    res.status(204).end();
+  } catch (error) {
+    console.error('DELETE /api/budget-expenses error:', error);
+    res.status(500).json({ error: 'Could not delete personal expense.' });
   }
 });
 

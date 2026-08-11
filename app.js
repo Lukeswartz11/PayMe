@@ -1,7 +1,7 @@
 // =============================================================
 // THE LEDGER — state & persistence
 // =============================================================
-let state = { people: [], expenses: [], settlements: [] };
+let state = { people: [], expenses: [], settlements: [], budgetExpenses: [] };
 const STORAGE_KEY = 'payme-local-state';
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : 'https://payme-9w80.onrender.com';
 const SYNC_INTERVAL_MS = 4000;
@@ -45,12 +45,13 @@ const accountNameInput = document.getElementById('account-name-input');
 const accountNameError = document.getElementById('account-name-error');
 let authMode = 'sign-in';
 let currentUser = null;
-const APP_VERSION = '20260810-charity-placeholder-r24';
+const APP_VERSION = '20260810-sleek-logs-r34';
 
 const DEFAULT_STATE = {
   people: [],
   expenses: [],
   settlements: [],
+  budgetExpenses: [],
 };
 
 function loadLocalState() {
@@ -72,7 +73,7 @@ function saveLocalState() {
 }
 
 function getStorageKey() {
-  return `${STORAGE_KEY}-${APP_VERSION}`;
+  return `${STORAGE_KEY}-${APP_VERSION}-${currentUser?.id || 'signed-out'}`;
 }
 
 function apiUrl(path) {
@@ -111,6 +112,7 @@ async function loadState() {
       people: Array.isArray(data.people) ? data.people : DEFAULT_STATE.people,
       expenses: Array.isArray(data.expenses) ? data.expenses : DEFAULT_STATE.expenses,
       settlements: Array.isArray(data.settlements) ? data.settlements : DEFAULT_STATE.settlements,
+      budgetExpenses: Array.isArray(data.budgetExpenses) ? data.budgetExpenses : DEFAULT_STATE.budgetExpenses,
     };
     localStorage.setItem(getStorageKey(), JSON.stringify(loaded));
     return loaded;
@@ -128,6 +130,7 @@ function normalizeState(data) {
     people: Array.isArray(data?.people) ? data.people : DEFAULT_STATE.people,
     expenses: Array.isArray(data?.expenses) ? data.expenses : DEFAULT_STATE.expenses,
     settlements: Array.isArray(data?.settlements) ? data.settlements : DEFAULT_STATE.settlements,
+    budgetExpenses: Array.isArray(data?.budgetExpenses) ? data.budgetExpenses : DEFAULT_STATE.budgetExpenses,
   };
 }
 
@@ -136,6 +139,7 @@ function getStateSignature(nextState) {
     people: nextState.people,
     expenses: nextState.expenses,
     settlements: nextState.settlements,
+    budgetExpenses: nextState.budgetExpenses,
   });
 }
 
@@ -209,6 +213,22 @@ async function createExpense(expense) {
     console.warn('Expense backend unavailable, falling back to local state.', error);
     return expense;
   }
+}
+
+async function createBudgetExpense(expense) {
+  const response = await apiFetch('/api/budget-expenses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(expense),
+  });
+  const payload = response.headers.get('content-type')?.includes('application/json') ? await response.json() : {};
+  if (!response.ok) throw new Error(payload.error || 'Could not create personal expense.');
+  return payload;
+}
+
+async function deleteBudgetExpenseById(id) {
+  const response = await apiFetch(`/api/budget-expenses/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error('Could not delete personal expense.');
 }
 
 async function createSettlement(settlement) {
@@ -295,8 +315,9 @@ const monthInput = document.getElementById('exp-month');
 const monthField = document.getElementById('exp-month-field');
 const splitCheckboxes = document.getElementById('split-checkboxes');
 
-const expenseListEl = document.getElementById('expense-list');
+const utilityTotalChart = document.getElementById('utility-total-chart');
 const expenseEmpty = document.getElementById('expense-empty');
+const utilityBreakdown = document.getElementById('utility-breakdown');
 
 const balancesGrid = document.getElementById('balances-grid');
 const settleList = document.getElementById('settle-list');
@@ -308,6 +329,17 @@ const paymentTo = document.getElementById('payment-to');
 const paymentAmount = document.getElementById('payment-amount');
 const paymentDescription = document.getElementById('payment-description');
 const paymentDate = document.getElementById('payment-date');
+
+const budgetForm = document.getElementById('budget-form');
+const budgetCategory = document.getElementById('budget-category');
+const budgetDescription = document.getElementById('budget-description');
+const budgetAmount = document.getElementById('budget-amount');
+const budgetDate = document.getElementById('budget-date');
+const budgetSummaryList = document.getElementById('budget-summary-list');
+const budgetSummaryEmpty = document.getElementById('budget-summary-empty');
+const budgetTotalChart = document.getElementById('budget-total-chart');
+const budgetTotalEmpty = document.getElementById('budget-total-empty');
+const budgetBreakdown = document.getElementById('budget-breakdown');
 
 const logPaymentList = document.getElementById('log-payment-list');
 const logPaymentEmpty = document.getElementById('log-payment-empty');
@@ -383,6 +415,7 @@ function setupSubTabs(attribute, panelPrefix, onActivate) {
 }
 
 setupSubTabs('balance', 'panel-');
+setupSubTabs('budget', 'budget-panel-');
 setupSubTabs('expense', 'expense-panel-', (name) => {
   const isOther = name === 'other';
   (isOther ? otherExpensePanel : utilityExpensePanel).append(expensePanel);
@@ -445,6 +478,7 @@ function currentEasternMonth() {
 dateInput.value = currentEasternDate();
 monthInput.value = currentEasternMonth();
 paymentDate.value = currentEasternDate();
+budgetDate.value = currentEasternDate();
 
 function activateTab(tabName) {
   tabButtons.forEach((button) => {
@@ -457,6 +491,7 @@ function activateTab(tabName) {
   });
 
   if (tabName === 'pay') paymentDate.value = currentEasternDate();
+  if (tabName === 'budget' && !budgetDate.value) budgetDate.value = currentEasternDate();
 
 }
 
@@ -667,6 +702,180 @@ async function deleteExpense(id) {
 }
 
 // =============================================================
+// PERSONAL BUDGET
+// =============================================================
+const BUDGET_CATEGORIES = ['groceries', 'eat-out', 'rent', 'other'];
+let selectedBudgetMonth = null;
+
+function budgetCategoryLabel(category) {
+  return category === 'eat-out' ? 'Eat Out' : categoryLabel(category);
+}
+
+function budgetChartMaximum(maximumCents) {
+  const maximumDollars = maximumCents / 100;
+  const roughTick = maximumDollars / 4;
+  const tickMultiple = roughTick < 50 ? 5 : roughTick < 250 ? 10 : roughTick < 1000 ? 50 : 100;
+  const tickDollars = Math.max(tickMultiple, Math.ceil(roughTick / tickMultiple) * tickMultiple);
+  return tickDollars * 4 * 100;
+}
+
+function renderBudgetBreakdown(month, totals) {
+  const monthTotal = Object.values(totals).reduce((sum, cents) => sum + cents, 0);
+  budgetBreakdown.hidden = false;
+  budgetBreakdown.innerHTML = `<div class="budget-breakdown-heading"><div><span class="budget-breakdown-eyebrow">Spending breakdown</span><h3>${formatBillingMonth(month)}</h3></div><strong>${money(monthTotal / 100)}</strong></div>`;
+  const categoryList = document.createElement('div');
+  categoryList.className = 'budget-breakdown-list';
+  [...BUDGET_CATEGORIES, 'utilities'].forEach((category) => {
+    const categoryTotal = totals[category] || 0;
+    const percentage = monthTotal ? categoryTotal / monthTotal * 100 : 0;
+    const row = document.createElement('div');
+    row.className = `budget-breakdown-row budget-breakdown-${category}`;
+    const label = category === 'utilities' ? 'Utilities' : budgetCategoryLabel(category);
+    row.innerHTML = `<div class="budget-breakdown-label"><span>${escapeHtml(label)}</span><span>${money(categoryTotal / 100)} <small>${Math.round(percentage)}%</small></span></div><div class="budget-breakdown-track"><span style="width:${percentage}%"></span></div>`;
+    categoryList.appendChild(row);
+  });
+  budgetBreakdown.appendChild(categoryList);
+}
+
+budgetForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const expense = {
+    id: uid(),
+    category: budgetCategory.value,
+    desc: budgetDescription.value.trim(),
+    amount: Number(budgetAmount.value),
+    date: budgetDate.value,
+  };
+  if (!BUDGET_CATEGORIES.includes(expense.category) || !expense.desc || !Number.isFinite(expense.amount) || expense.amount <= 0 || !expense.date) return;
+  try {
+    const savedExpense = await createBudgetExpense(expense);
+    state.budgetExpenses.unshift(savedExpense);
+    saveLocalState();
+    budgetDescription.value = '';
+    budgetAmount.value = '';
+    budgetDate.value = currentEasternDate();
+    renderBudget();
+  } catch (error) {
+    alert(error.message || 'Could not save personal expense.');
+  }
+});
+
+async function deleteBudgetExpense(id) {
+  try {
+    await deleteBudgetExpenseById(id);
+    state.budgetExpenses = state.budgetExpenses.filter((expense) => expense.id !== id);
+    saveLocalState();
+    renderBudget();
+  } catch (error) {
+    alert(error.message || 'Could not delete personal expense.');
+  }
+}
+
+function renderBudget() {
+  const expenses = [...state.budgetExpenses].sort((a, b) => `${b.date || ''}${b.createdAt || ''}`.localeCompare(`${a.date || ''}${a.createdAt || ''}`));
+  budgetSummaryList.innerHTML = '';
+  budgetSummaryEmpty.style.display = expenses.length ? 'none' : 'block';
+  expenses.forEach((expense) => {
+    const item = document.createElement('li');
+    item.className = 'log-row sleek-log-row budget-log-card';
+    item.innerHTML = `<div class="sleek-log-content"><div class="sleek-log-meta"><span class="sleek-log-date">${formatDate(expense.date)}</span><span class="sleek-log-badge budget-log-badge-${expense.category}">${escapeHtml(budgetCategoryLabel(expense.category))}</span></div><strong class="sleek-log-description">${escapeHtml(expense.desc)}</strong></div><span class="sleek-log-amount">${money(expense.amount)}</span>`;
+    const deleteButton = document.createElement('button');
+    deleteButton.type = 'button';
+    deleteButton.className = 'log-delete-button';
+    deleteButton.textContent = 'Delete';
+    deleteButton.setAttribute('aria-label', `Delete ${expense.desc} from ${formatDate(expense.date)}`);
+    deleteButton.addEventListener('click', () => deleteBudgetExpense(expense.id));
+    item.appendChild(deleteButton);
+    addHoldToRevealDelete(item);
+    budgetSummaryList.appendChild(item);
+  });
+
+  const months = new Map();
+  const emptyMonthTotals = () => ({ ...Object.fromEntries(BUDGET_CATEGORIES.map((category) => [category, 0])), utilities: 0 });
+  expenses.forEach((expense) => {
+    const month = String(expense.date || '').slice(0, 7) || 'unknown';
+    if (!months.has(month)) months.set(month, emptyMonthTotals());
+    months.get(month)[expense.category] += Math.round(Number(expense.amount) * 100);
+  });
+  state.expenses
+    .filter((expense) => ['gas', 'electric', 'internet'].includes(expenseCategory(expense)))
+    .forEach((expense) => {
+      const splitAmong = Array.isArray(expense.splitAmong) ? expense.splitAmong : [];
+      const accountIndex = splitAmong.indexOf(currentUser?.name);
+      if (accountIndex < 0 || !splitAmong.length) return;
+      const totalCents = Math.round(Number(expense.amount) * 100);
+      const baseShareCents = Math.floor(totalCents / splitAmong.length);
+      const remainder = totalCents - baseShareCents * splitAmong.length;
+      const accountShareCents = baseShareCents + (accountIndex < remainder ? 1 : 0);
+      const month = expense.month || String(expense.date || '').slice(0, 7) || 'unknown';
+      if (!months.has(month)) months.set(month, emptyMonthTotals());
+      months.get(month).utilities += accountShareCents;
+    });
+  budgetTotalChart.innerHTML = '';
+  budgetTotalEmpty.style.display = months.size ? 'none' : 'block';
+  if (!months.size) {
+    selectedBudgetMonth = null;
+    budgetBreakdown.hidden = true;
+    budgetBreakdown.innerHTML = '';
+    return;
+  }
+
+  const monthEntries = [...months.entries()].sort(([a], [b]) => a.localeCompare(b));
+  if (!months.has(selectedBudgetMonth)) selectedBudgetMonth = null;
+  const maximumCents = Math.max(...monthEntries.map(([, totals]) => Object.values(totals).reduce((sum, cents) => sum + cents, 0)), 1);
+  const chartMaximumCents = budgetChartMaximum(maximumCents);
+  const yAxis = document.createElement('div');
+  yAxis.className = 'budget-y-axis';
+  yAxis.setAttribute('aria-hidden', 'true');
+  yAxis.innerHTML = `<span class="budget-axis-title">$</span>${[4, 3, 2, 1, 0].map((step) => `<span>${money(chartMaximumCents * step / 4 / 100)}</span>`).join('')}`;
+  const plot = document.createElement('div');
+  plot.className = 'budget-chart-plot';
+  plot.classList.toggle('has-selection', Boolean(selectedBudgetMonth));
+  const gridLines = document.createElement('div');
+  gridLines.className = 'budget-grid-lines';
+  gridLines.setAttribute('aria-hidden', 'true');
+  gridLines.innerHTML = '<span></span><span></span><span></span><span></span><span></span>';
+  plot.appendChild(gridLines);
+  budgetTotalChart.append(yAxis, plot);
+  monthEntries.forEach(([month, totals]) => {
+    const monthTotal = Object.values(totals).reduce((sum, cents) => sum + cents, 0);
+    const item = document.createElement('div');
+    item.className = 'budget-bar-item';
+    item.setAttribute('role', 'listitem');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'budget-bar-button';
+    button.classList.toggle('selected', month === selectedBudgetMonth);
+    button.setAttribute('aria-pressed', String(month === selectedBudgetMonth));
+    button.setAttribute('aria-label', `${formatBillingMonth(month)}: ${money(monthTotal / 100)}`);
+    const height = monthTotal > 0 ? Math.max(3, Math.round(monthTotal / chartMaximumCents * 100)) : 0;
+    button.innerHTML = `<span class="budget-bar-amount">${money(monthTotal / 100)}</span><span class="budget-bar-track"><span class="budget-bar-fill" style="height:${height}%"></span></span><span class="budget-bar-label">${escapeHtml(formatBillingMonth(month))}</span>`;
+    button.addEventListener('click', () => {
+      selectedBudgetMonth = selectedBudgetMonth === month ? null : month;
+      plot.classList.toggle('has-selection', Boolean(selectedBudgetMonth));
+      budgetTotalChart.querySelectorAll('.budget-bar-button').forEach((candidate) => {
+        const selected = Boolean(selectedBudgetMonth) && candidate === button;
+        candidate.classList.toggle('selected', selected);
+        candidate.setAttribute('aria-pressed', String(selected));
+      });
+      if (selectedBudgetMonth) {
+        renderBudgetBreakdown(month, totals);
+      } else {
+        budgetBreakdown.hidden = true;
+        budgetBreakdown.innerHTML = '';
+      }
+    });
+    item.appendChild(button);
+    plot.appendChild(item);
+  });
+  if (selectedBudgetMonth) renderBudgetBreakdown(selectedBudgetMonth, months.get(selectedBudgetMonth));
+  else {
+    budgetBreakdown.hidden = true;
+    budgetBreakdown.innerHTML = '';
+  }
+}
+
+// =============================================================
 // PAYMENTS
 // =============================================================
 function populateSelect(select, names, previous, emptyLabel) {
@@ -865,8 +1074,8 @@ function renderActivityLog() {
   const paymentPreview = isPaymentLogExpanded ? payments : payments.slice(0, LOG_PREVIEW_COUNT);
   paymentPreview.forEach((payment) => {
     const item = document.createElement('li');
-    item.className = 'log-row log-payment-row';
-    item.innerHTML = `<div class="log-entry-details"><span class="log-date">${formatDate(payment.date)}</span><span>${escapeHtml(payment.desc || 'Payment')}</span><span> ${escapeHtml(payment.from)} to ${escapeHtml(payment.to)}</span></div><span class="log-amount">${money(payment.amount)}</span>`;
+    item.className = 'log-row sleek-log-row payment-log-card';
+    item.innerHTML = `<div class="sleek-log-content"><div class="sleek-log-meta"><span class="sleek-log-date">${formatDate(payment.date)}</span><span class="sleek-log-badge payment-log-badge">Payment</span></div><strong class="sleek-log-description">${escapeHtml(payment.desc || 'Payment')}</strong><span class="sleek-log-route"><b>${escapeHtml(payment.from)}</b><span aria-hidden="true">→</span><b>${escapeHtml(payment.to)}</b></span></div><span class="sleek-log-amount">${money(payment.amount)}</span>`;
     if (currentUser?.isDeveloper || payment.createdBy === currentUser?.id) {
       const deleteButton = document.createElement('button');
       deleteButton.type = 'button';
@@ -904,14 +1113,16 @@ function renderActivityLog() {
         : expense.splitAmong.join(', ');
 
     const item = document.createElement('li');
-    item.className = 'log-row log-expense-row';
+    item.className = 'log-row utility-log-row';
     item.innerHTML = `<div class="log-entry-details"><span class="log-date">${formatDate(expense.date)}</span><div class="log-entry-row"><span class="log-entry-main">${escapeHtml(expense.paidBy)}</span><span class="log-entry-split">→ ${escapeHtml(splitLabel)}</span></div><span>${categoryLabel(expenseCategory(expense))}</span></div><span class="log-amount">${money(expense.amount)}</span>`;
+    const category = expenseCategory(expense);
+    item.innerHTML = `<div class="utility-log-content"><div class="utility-log-meta"><span class="utility-log-date">${formatDate(expense.date)}</span><span class="utility-log-category utility-log-category-${category}">${categoryLabel(category)}</span></div><div class="utility-log-route"><strong>${escapeHtml(expense.paidBy)}</strong><span>paid for ${escapeHtml(splitLabel)}</span></div></div><span class="utility-log-amount">${money(expense.amount)}</span>`;
     if (currentUser?.isDeveloper || expense.createdBy === currentUser?.id) {
       const deleteButton = document.createElement('button');
       deleteButton.type = 'button';
       deleteButton.className = 'log-delete-button';
       deleteButton.textContent = 'Delete';
-      deleteButton.setAttribute('aria-label', `Delete ${expenseCategory(expense)} expense from ${formatDate(expense.date)}`);
+      deleteButton.setAttribute('aria-label', `Delete ${category} expense from ${formatDate(expense.date)}`);
       deleteButton.addEventListener('click', () => deleteExpense(expense.id));
       item.appendChild(deleteButton);
       addHoldToRevealDelete(item);
@@ -948,11 +1159,12 @@ function renderExpenseLog(expenses, list, empty, moreButton, expanded) {
       ? 'everyone'
       : splitAmong.length === 2 ? splitAmong.join(' & ') : splitAmong.join(', ');
     const item = document.createElement('li');
-    item.className = 'log-row log-expense-row';
+    item.className = 'log-row sleek-log-row other-log-card';
     const expenseLabel = expenseCategory(expense) === 'other' && expense.desc
       ? expense.desc
       : categoryLabel(expenseCategory(expense));
     item.innerHTML = `<div class="log-entry-details"><span class="log-date">${formatDate(expense.date)}</span><div class="log-entry-row"><span class="log-entry-main">${escapeHtml(expense.paidBy)}</span><span class="log-entry-split">→ ${escapeHtml(splitLabel)}</span></div><span>${escapeHtml(expenseLabel)}</span></div><span class="log-amount">${money(expense.amount)}</span>`;
+    item.innerHTML = `<div class="sleek-log-content"><div class="sleek-log-meta"><span class="sleek-log-date">${formatDate(expense.date)}</span><span class="sleek-log-badge other-log-badge">Other</span></div><strong class="sleek-log-description">${escapeHtml(expenseLabel)}</strong><span class="sleek-log-route"><b>${escapeHtml(expense.paidBy)}</b><span>paid for ${escapeHtml(splitLabel)}</span></span></div><span class="sleek-log-amount">${money(expense.amount)}</span>`;
     if (currentUser?.isDeveloper || expense.createdBy === currentUser?.id) {
       const deleteButton = document.createElement('button');
       deleteButton.type = 'button';
@@ -1003,43 +1215,97 @@ function isActiveSettlement(settlement) {
 }
 
 function renderExpenses() {
-  expenseListEl.innerHTML = '';
   const utilityExpenses = state.expenses.filter((expense) => ['gas', 'electric', 'internet'].includes(expenseCategory(expense)));
   expenseEmpty.style.display = utilityExpenses.length ? 'none' : 'block';
-  return renderReceiptMonths(utilityExpenses);
+  renderUtilityTotalsGraph(utilityExpenses);
 }
 
-function renderReceiptMonths(expenses) {
+let selectedUtilityMonth = null;
+
+function renderUtilityBreakdown(month, totals) {
+  const monthTotal = Object.values(totals).reduce((sum, cents) => sum + cents, 0);
+  utilityBreakdown.hidden = false;
+  utilityBreakdown.innerHTML = `<div class="budget-breakdown-heading"><div><span class="budget-breakdown-eyebrow">Full utility breakdown</span><h3>${formatBillingMonth(month)}</h3></div><strong>${money(monthTotal / 100)}</strong></div>`;
+  const list = document.createElement('div');
+  list.className = 'budget-breakdown-list';
+  ['gas', 'electric', 'internet'].forEach((category) => {
+    const categoryTotal = totals[category] || 0;
+    const percentage = monthTotal ? categoryTotal / monthTotal * 100 : 0;
+    const row = document.createElement('div');
+    row.className = `budget-breakdown-row utility-breakdown-${category}`;
+    row.innerHTML = `<div class="budget-breakdown-label"><span>${categoryLabel(category)}</span><span>${money(categoryTotal / 100)} <small>${Math.round(percentage)}%</small></span></div><div class="budget-breakdown-track"><span style="width:${percentage}%"></span></div>`;
+    list.appendChild(row);
+  });
+  utilityBreakdown.appendChild(list);
+}
+
+function renderUtilityTotalsGraph(expenses) {
   const categories = ['gas', 'electric', 'internet'];
   const byMonth = new Map();
   expenses.forEach((expense) => {
     const month = expense.month || expense.date?.slice(0, 7) || 'unknown';
-    if (!byMonth.has(month)) byMonth.set(month, []);
-    byMonth.get(month).push(expense);
+    if (!byMonth.has(month)) byMonth.set(month, { gas: 0, electric: 0, internet: 0 });
+    byMonth.get(month)[expenseCategory(expense)] += Math.round(Number(expense.amount) * 100);
   });
-
-  [...byMonth.entries()]
-    .sort(([a], [b]) => b.localeCompare(a))
-    .forEach(([month, expenses]) => {
-      const monthItem = document.createElement('li');
-      monthItem.className = 'receipt-month';
-      const monthTotal = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-      monthItem.innerHTML = `<div class="receipt-month-heading"><h3>${formatBillingMonth(month)}</h3><span>${money(monthTotal)}</span></div>`;
-
-      const categoryGrid = document.createElement('div');
-      categoryGrid.className = 'receipt-category-grid';
-      categories.forEach((category) => {
-        const categoryExpenses = expenses.filter((expense) => expenseCategory(expense) === category);
-        const total = categoryExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-        const categoryCard = document.createElement('section');
-        categoryCard.className = `receipt-category receipt-category-${category}`;
-        categoryCard.innerHTML = `<div class="receipt-category-heading"><span>${categoryLabel(category)}</span><strong>${money(total)}</strong></div>`;
-        categoryGrid.appendChild(categoryCard);
+  utilityTotalChart.innerHTML = '';
+  if (!byMonth.size) {
+    selectedUtilityMonth = null;
+    utilityBreakdown.hidden = true;
+    utilityBreakdown.innerHTML = '';
+    return;
+  }
+  const entries = [...byMonth.entries()].sort(([a], [b]) => a.localeCompare(b));
+  if (!byMonth.has(selectedUtilityMonth)) selectedUtilityMonth = null;
+  const maximumCents = Math.max(...entries.map(([, totals]) => categories.reduce((sum, category) => sum + totals[category], 0)), 1);
+  const chartMaximumCents = budgetChartMaximum(maximumCents);
+  const yAxis = document.createElement('div');
+  yAxis.className = 'budget-y-axis';
+  yAxis.setAttribute('aria-hidden', 'true');
+  yAxis.innerHTML = `<span class="budget-axis-title">$</span>${[4, 3, 2, 1, 0].map((step) => `<span>${money(chartMaximumCents * step / 4 / 100)}</span>`).join('')}`;
+  const plot = document.createElement('div');
+  plot.className = 'budget-chart-plot';
+  plot.classList.toggle('has-selection', Boolean(selectedUtilityMonth));
+  const gridLines = document.createElement('div');
+  gridLines.className = 'budget-grid-lines';
+  gridLines.setAttribute('aria-hidden', 'true');
+  gridLines.innerHTML = '<span></span><span></span><span></span><span></span><span></span>';
+  plot.appendChild(gridLines);
+  utilityTotalChart.append(yAxis, plot);
+  entries.forEach(([month, totals]) => {
+    const monthTotal = categories.reduce((sum, category) => sum + totals[category], 0);
+    const item = document.createElement('div');
+    item.className = 'budget-bar-item';
+    item.setAttribute('role', 'listitem');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'budget-bar-button';
+    button.classList.toggle('selected', month === selectedUtilityMonth);
+    button.setAttribute('aria-pressed', String(month === selectedUtilityMonth));
+    button.setAttribute('aria-label', `${formatBillingMonth(month)} household utilities: ${money(monthTotal / 100)}`);
+    const height = Math.max(3, Math.round(monthTotal / chartMaximumCents * 100));
+    button.innerHTML = `<span class="budget-bar-amount">${money(monthTotal / 100)}</span><span class="budget-bar-track"><span class="budget-bar-fill" style="height:${height}%"></span></span><span class="budget-bar-label">${escapeHtml(formatBillingMonth(month))}</span>`;
+    button.addEventListener('click', () => {
+      selectedUtilityMonth = selectedUtilityMonth === month ? null : month;
+      plot.classList.toggle('has-selection', Boolean(selectedUtilityMonth));
+      utilityTotalChart.querySelectorAll('.budget-bar-button').forEach((candidate) => {
+        const selected = Boolean(selectedUtilityMonth) && candidate === button;
+        candidate.classList.toggle('selected', selected);
+        candidate.setAttribute('aria-pressed', String(selected));
       });
-
-      monthItem.appendChild(categoryGrid);
-      expenseListEl.appendChild(monthItem);
+      if (selectedUtilityMonth) renderUtilityBreakdown(month, totals);
+      else {
+        utilityBreakdown.hidden = true;
+        utilityBreakdown.innerHTML = '';
+      }
     });
+    item.appendChild(button);
+    plot.appendChild(item);
+  });
+  if (selectedUtilityMonth) renderUtilityBreakdown(selectedUtilityMonth, byMonth.get(selectedUtilityMonth));
+  else {
+    utilityBreakdown.hidden = true;
+    utilityBreakdown.innerHTML = '';
+  }
 }
 
 function expenseCategory(expense) {
@@ -1491,8 +1757,8 @@ function showAuthScreen() {
   if (syncTimer) clearInterval(syncTimer);
   syncTimer = null;
   clearSessionToken();
-  setDeveloperAccess(null);
   localStorage.removeItem(getStorageKey());
+  setDeveloperAccess(null);
   document.body.classList.remove('is-authenticated');
   appShell.hidden = true;
   authScreen.hidden = false;
@@ -1576,6 +1842,7 @@ function renderAll() {
   renderPaymentOptions();
   renderSettlements(computeSettlements(balance));
   renderActivityLog();
+  renderBudget();
 }
 
 setAuthMode(authMode);

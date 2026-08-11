@@ -60,6 +60,7 @@
       <button id="tab-balance" class="tab-button" type="button" role="tab" aria-selected="true" aria-controls="panel-balance" data-tab="balance">Balance</button>
       <button id="tab-log" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-log" data-tab="log">Log</button>
       <button id="tab-pay" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-pay" data-tab="pay">Pay</button>
+      <button id="tab-budget" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-budget" data-tab="budget">Budget</button>
       <button id="tab-tally" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-tally" data-tab="tally">Receipts</button>
     </nav>
 
@@ -140,9 +141,40 @@
         </form>
       </div>
 
+      <!-- PERSONAL BUDGET -->
+      <section id="panel-budget" class="panel grouped-panel tab-panel" role="tabpanel" aria-labelledby="tab-budget" hidden>
+        <h2 class="panel-title"><span class="panel-num">04</span> Personal Budget</h2>
+        <p class="panel-hint">Private budget for personal use.</p>
+        <div class="section-tabs budget-tabs" role="tablist" aria-label="Personal budget views">
+          <button id="budget-tab-log" class="section-tab-button" type="button" role="tab" aria-selected="true" aria-controls="budget-panel-log" data-budget-tab="log">Log expense</button>
+          <button id="budget-tab-summary" class="section-tab-button" type="bubar to see where the mtton" role="tab" aria-selected="false" aria-controls="budget-panel-summary" data-budget-tab="summary">Summary</button>
+          <button id="budget-tab-total" class="section-tab-button" type="button" role="tab" aria-selected="false" aria-controls="budget-panel-total" data-budget-tab="total">Total</button>
+        </div>
+        <section id="budget-panel-log" class="group-subpanel" role="tabpanel" aria-labelledby="budget-tab-log">
+          <h3 class="receipt-subtitle">Log a personal expense</h3>
+          <form id="budget-form" class="expense-form budget-form">
+            <div class="field"><label for="budget-category">Category</label><select id="budget-category" required><option value="groceries">Groceries</option><option value="eat-out">Eat Out</option><option value="rent">Rent</option><option value="other">Other</option></select></div>
+            <div class="field field-other-description"><label for="budget-description">Description</label><input id="budget-description" type="text" maxlength="60" placeholder="What did you buy?" required></div>
+            <div class="field field-amount"><label for="budget-amount">Amount</label><div class="amount-wrap"><span>$</span><input id="budget-amount" type="number" min="0.01" step="0.01" placeholder="0.00" required></div></div>
+            <div class="field"><label for="budget-date">Date</label><input id="budget-date" type="date" required></div>
+            <button type="submit" class="btn btn-red btn-wide">Add personal expense</button>
+          </form>
+        </section>
+        <section id="budget-panel-summary" class="group-subpanel" role="tabpanel" aria-labelledby="budget-tab-summary" hidden>
+          <h3 class="receipt-subtitle">Personal expense history</h3>
+          <ol id="budget-summary-list" class="log-list budget-summary-list"></ol>
+          <p id="budget-summary-empty" class="empty-note">No personal expenses recorded yet.</p>
+        </section>
+        <section id="budget-panel-total" class="group-subpanel" role="tabpanel" aria-labelledby="budget-tab-total" hidden>
+          <div id="budget-total-chart" class="budget-chart" role="list" aria-label="Monthly personal spending"></div>
+          <p id="budget-total-empty" class="empty-note">No personal expenses recorded yet.</p>
+          <section id="budget-breakdown" class="budget-breakdown" aria-live="polite" hidden></section>
+        </section>
+      </section>
+
       <!-- EXPENSE LIST -->
       <section id="panel-tally" class="panel receipt-panel tab-panel" role="tabpanel" aria-labelledby="tab-tally" hidden>
-        <h2 class="panel-title"><span class="panel-num">04</span> Receipts</h2>
+        <h2 class="panel-title"><span class="panel-num">05</span> Receipts</h2>
         <div class="receipt-tabs" role="tablist" aria-label="Receipt views">
           <button id="receipt-tab-totals" class="receipt-tab-button" type="button" role="tab" aria-selected="true" aria-controls="receipt-panel-totals" data-receipt-tab="totals">Total utilities</button>
           <button id="receipt-tab-utilities" class="receipt-tab-button" type="button" role="tab" aria-selected="false" aria-controls="receipt-panel-utilities" data-receipt-tab="utilities">Utilities log</button>
@@ -150,8 +182,10 @@
           <button id="receipt-tab-payments" class="receipt-tab-button" type="button" role="tab" aria-selected="false" aria-controls="receipt-panel-payments" data-receipt-tab="payments">Payments</button>
         </div>
         <section id="receipt-panel-totals" class="receipt-subpanel" role="tabpanel" aria-labelledby="receipt-tab-totals">
-          <p class="panel-hint">Monthly utility spending, organized by category.</p>
-          <div class="receipt"><div class="receipt-edge" aria-hidden="true"></div><ul id="expense-list" class="receipt-body"></ul><p id="expense-empty" class="empty-note">No utility expenses logged yet.</p><div class="receipt-edge receipt-edge-bottom" aria-hidden="true"></div></div>
+          <p class="panel-hint">The full household utility bill each month.</p>
+          <div id="utility-total-chart" class="budget-chart" role="list" aria-label="Monthly household utility spending"></div>
+          <p id="expense-empty" class="empty-note">No utility expenses logged yet.</p>
+          <section id="utility-breakdown" class="budget-breakdown" aria-live="polite" hidden></section>
         </section>
         <section id="receipt-panel-utilities" class="receipt-subpanel" role="tabpanel" aria-labelledby="receipt-tab-utilities" hidden>
           <h3 class="receipt-subtitle">Utility expenses by date</h3><ol id="log-expense-list" class="log-list"></ol><button id="log-expense-more" type="button" class="log-more-button" hidden>View more expenses</button><p id="log-expense-empty" class="empty-note">No utility expenses recorded yet.</p>
@@ -283,6 +317,6 @@
     </div>
   </section>
 
-<script src="app.js?v=20260810-charity-placeholder-r24"></script>
+<script src="app.js?v=20260810-sleek-logs-r34"></script>
 </body>
 </html>
