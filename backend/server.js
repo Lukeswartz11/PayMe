@@ -87,11 +87,12 @@ const defaultData = {
   expenses: [],
   settlements: [],
   budgetExpenses: [],
+  personalReceipts: [],
   users: [],
 };
 
 app.use(cors({ origin: true, credentials: true, allowedHeaders: ['Content-Type', 'Authorization'] }));
-app.use(express.json());
+app.use(express.json({ limit: '3mb' }));
 app.use(express.static(publicRoot));
 
 async function readData() {
@@ -124,6 +125,7 @@ function normalizeData(data) {
     expenses: Array.isArray(data?.expenses) ? data.expenses : [],
     settlements: Array.isArray(data?.settlements) ? data.settlements : [],
     budgetExpenses: Array.isArray(data?.budgetExpenses) ? data.budgetExpenses : [],
+    personalReceipts: Array.isArray(data?.personalReceipts) ? data.personalReceipts : [],
     users: Array.isArray(data?.users) ? data.users : [],
   };
 }
@@ -146,6 +148,10 @@ function validPassword(password, user) {
 
 function getUserLoginName(user) {
   return String(user.name || user.username || '').trim().toLowerCase();
+}
+
+function publicUser(user) {
+  return { id: user.id, name: user.name || '', isDeveloper: Boolean(user.isDeveloper), zelle: user.zelle || '', venmo: user.venmo || '', bank: user.bank || '', budgetGraphCategories: Array.isArray(user.budgetGraphCategories) ? user.budgetGraphCategories : null };
 }
 
 function validName(name) {
@@ -357,7 +363,7 @@ app.post('/api/auth/signup', async (req, res) => {
     if (!data.people.some((person) => person.toLowerCase() === name.toLowerCase())) data.people.push(name);
     const sessionToken = createSession(user, res, Boolean(req.body?.remember));
     await writeData(data);
-    res.status(201).json({ user: { id: user.id, name: user.name, isDeveloper: false, zelle: '', venmo: '', bank: '' }, sessionToken });
+    res.status(201).json({ user: publicUser(user), sessionToken });
   } catch (error) {
     console.error('POST /api/auth/signup error:', error);
     res.status(500).json({ error: 'Could not create account.' });
@@ -373,7 +379,7 @@ app.post('/api/auth/signin', async (req, res) => {
     if (!user || !validPassword(password, user)) return res.status(401).json({ error: 'Incorrect first name or password.' });
     const sessionToken = createSession(user, res, Boolean(req.body?.remember));
     await writeData(data);
-    res.json({ user: { id: user.id, name: user.name || '', isDeveloper: Boolean(user.isDeveloper), zelle: user.zelle || '', venmo: user.venmo || '', bank: user.bank || '' }, sessionToken });
+    res.json({ user: publicUser(user), sessionToken });
   } catch (error) {
     console.error('POST /api/auth/signin error:', error);
     res.status(500).json({ error: 'Could not sign in.' });
@@ -384,7 +390,7 @@ app.get('/api/auth/me', requireAuth, async (req, res) => {
   const data = await readPreparedData();
   const user = data.users.find((candidate) => candidate.id === req.userId);
   if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
-    res.json({ user: { id: user.id, name: user.name || '', isDeveloper: Boolean(user.isDeveloper), zelle: user.zelle || '', venmo: user.venmo || '', bank: user.bank || '' } });
+    res.json({ user: publicUser(user) });
 });
 
 app.put('/api/auth/payment-info', requireAuth, async (req, res) => {
@@ -441,7 +447,7 @@ app.put('/api/auth/account', requireAuth, async (req, res) => {
       });
     }
     await writeData(data);
-    res.json({ user: { id: user.id, name: user.name, isDeveloper: false, zelle: user.zelle || '', venmo: user.venmo || '', bank: user.bank || '' } });
+    res.json({ user: publicUser(user) });
   } catch (error) {
     console.error('PUT /api/auth/account error:', error);
     res.status(500).json({ error: 'Could not update account.' });
@@ -591,10 +597,61 @@ app.post('/api/push/reminders/run', async (req, res) => {
 app.get('/api/state', requireAuth, async (req, res) => {
   try {
     const data = await readData();
-    res.json({ people: data.people, expenses: data.expenses, settlements: data.settlements, budgetExpenses: data.budgetExpenses.filter((expense) => expense.ownerId === req.userId) });
+    res.json({ people: data.people, expenses: data.expenses, settlements: data.settlements, budgetExpenses: data.budgetExpenses.filter((expense) => expense.ownerId === req.userId), personalReceipts: data.personalReceipts.filter((receipt) => receipt.ownerId === req.userId) });
   } catch (error) {
     console.error('GET /api/state error:', error);
     res.status(500).json({ error: 'Could not read state.' });
+  }
+});
+
+app.put('/api/auth/budget-settings', requireAuth, async (req, res) => {
+  try {
+    const categories = Array.isArray(req.body?.categories) ? req.body.categories : [];
+    const allowed = ['groceries', 'eat-out', 'rent', 'fun', 'other', 'gas', 'electric', 'internet'];
+    const selected = [...new Set(categories.filter((category) => allowed.includes(category)))];
+    if (!selected.length) return res.status(400).json({ error: 'Choose at least one graph category.' });
+    const data = await readData();
+    const user = data.users.find((candidate) => candidate.id === req.userId);
+    if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
+    user.budgetGraphCategories = selected;
+    await writeData(data);
+    res.json({ budgetGraphCategories: selected });
+  } catch (error) {
+    console.error('PUT /api/auth/budget-settings error:', error);
+    res.status(500).json({ error: 'Could not save graph settings.' });
+  }
+});
+
+app.post('/api/personal-receipts', requireAuth, async (req, res) => {
+  try {
+    const data = await readData();
+    const user = data.users.find((candidate) => candidate.id === req.userId);
+    const store = String(req.body?.store || '').trim();
+    const image = String(req.body?.image || '');
+    if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
+    if (!store || store.length > 60) return res.status(400).json({ error: 'Enter a store name up to 60 characters.' });
+    if (!/^data:image\/(jpeg|png|webp);base64,/.test(image) || image.length > 2_500_000) return res.status(400).json({ error: 'Upload a readable JPEG, PNG, or WebP receipt under 1.8 MB.' });
+    const receipt = { id: crypto.randomUUID(), ownerId: user.id, store, image, createdAt: new Date().toISOString() };
+    data.personalReceipts.unshift(receipt);
+    await writeData(data);
+    res.status(201).json(receipt);
+  } catch (error) {
+    console.error('POST /api/personal-receipts error:', error);
+    res.status(500).json({ error: 'Could not save receipt photo.' });
+  }
+});
+
+app.delete('/api/personal-receipts/:id', requireAuth, async (req, res) => {
+  try {
+    const data = await readData();
+    const receipt = data.personalReceipts.find((candidate) => candidate.id === req.params.id && candidate.ownerId === req.userId);
+    if (!receipt) return res.status(404).json({ error: 'Receipt photo not found.' });
+    data.personalReceipts = data.personalReceipts.filter((candidate) => candidate !== receipt);
+    await writeData(data);
+    res.status(204).end();
+  } catch (error) {
+    console.error('DELETE /api/personal-receipts error:', error);
+    res.status(500).json({ error: 'Could not delete receipt photo.' });
   }
 });
 

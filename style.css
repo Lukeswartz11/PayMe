@@ -882,9 +882,26 @@ input:focus-visible, select:focus-visible, button:focus-visible {
    ============================================================ */
 .receipt-tabs, .section-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.45rem; margin: 0.25rem 0 1.25rem; padding: 0.45rem; border: 1.5px solid var(--paper-line); border-radius: 6px; background: var(--card); }
 .section-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.section-tabs.budget-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.section-tabs.budget-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .budget-tabs { width: 100%; min-width: 0; }
 .budget-tabs .section-tab-button { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+.budget-graph-filter { position: relative; z-index: 2; width: min(100%, 21rem); margin: 0 0 1rem auto; border: 1px solid var(--paper-line); border-radius: 6px; background: var(--card); }
+.budget-graph-filter summary { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; padding: 0.7rem 0.85rem; color: var(--ink); font: 700 0.72rem var(--font-mono); cursor: pointer; list-style: none; }
+.budget-graph-filter summary::-webkit-details-marker { display: none; }
+.budget-graph-filter summary::after { content: '⌄'; color: var(--stamp-red-ink); font-size: 1rem; }
+.budget-graph-filter[open] summary::after { transform: rotate(180deg); }
+.budget-graph-selection { color: var(--stamp-red-ink); font-size: 0.66rem; }
+.budget-graph-filter > p { margin: 0; padding: 0 0.85rem 0.65rem; color: var(--ink-faint); font-size: 0.76rem; }
+.budget-graph-settings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.45rem; padding: 0 0.65rem 0.65rem; }
+.budget-graph-option { display: flex; align-items: center; gap: 0.55rem; padding: 0.7rem; border: 1px solid var(--paper-line); border-radius: 5px; font: 700 0.78rem var(--font-mono); cursor: pointer; }
+.budget-graph-option input { accent-color: var(--stamp-red-ink); }
+.personal-receipt-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: 0.9rem; margin-top: 1rem; }
+.personal-receipt-card { overflow: hidden; border: 1px solid var(--paper-line); border-radius: 6px; background: var(--card); }
+.personal-receipt-card img { display: block; width: 100%; max-height: 18rem; object-fit: contain; background: #fff; }
+.personal-receipt-meta { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.65rem; }
+.personal-receipt-meta strong, .personal-receipt-meta span { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.personal-receipt-meta span { color: var(--ink-faint); font: 0.7rem var(--font-mono); }
+.personal-receipt-delete { border: 0; background: none; color: var(--stamp-red-ink); font: 700 0.7rem var(--font-mono); cursor: pointer; }
 .receipt-tab-button, .section-tab-button { padding: 0.65rem 0.45rem; border: 1.5px solid transparent; border-radius: 4px; background: transparent; color: var(--ink-soft); font: 700 0.72rem var(--font-mono); cursor: pointer; }
 .receipt-tab-button:hover, .section-tab-button:hover { border-color: var(--paper-line); color: var(--ink); }
 .receipt-tab-button[aria-selected="true"], .section-tab-button[aria-selected="true"] { border-color: var(--stamp-red-ink); background: var(--stamp-red); color: var(--paper); }
@@ -1440,6 +1457,8 @@ html[data-theme="dark"] ::selection { background: #BA0C2F; color: #FFF; }
   .settings-row { align-items: stretch; flex-direction: column; }
   .account-name-controls { width: 100%; }
   .receipt-tabs { grid-template-columns: 1fr 1fr; }
+  .section-tabs.budget-tabs { grid-template-columns: 1fr 1fr; }
+  .budget-graph-settings { grid-template-columns: 1fr; }
   .expense-form { grid-template-columns: 1fr; }
   .payment-form { grid-template-columns: 1fr; }
   .expense-form.budget-form { grid-template-columns: 1fr; }

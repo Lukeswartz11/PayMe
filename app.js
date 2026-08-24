@@ -1,7 +1,7 @@
 // =============================================================
 // THE LEDGER — state & persistence
 // =============================================================
-let state = { people: [], expenses: [], settlements: [], budgetExpenses: [] };
+let state = { people: [], expenses: [], settlements: [], budgetExpenses: [], personalReceipts: [] };
 const STORAGE_KEY = 'payme-local-state';
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : 'https://payme-9w80.onrender.com';
 const SYNC_INTERVAL_MS = 4000;
@@ -71,6 +71,7 @@ const DEFAULT_STATE = {
   expenses: [],
   settlements: [],
   budgetExpenses: [],
+  personalReceipts: [],
 };
 
 function loadLocalState() {
@@ -132,12 +133,13 @@ async function loadState() {
       expenses: Array.isArray(data.expenses) ? data.expenses : DEFAULT_STATE.expenses,
       settlements: Array.isArray(data.settlements) ? data.settlements : DEFAULT_STATE.settlements,
       budgetExpenses: Array.isArray(data.budgetExpenses) ? data.budgetExpenses : DEFAULT_STATE.budgetExpenses,
+      personalReceipts: Array.isArray(data.personalReceipts) ? data.personalReceipts : DEFAULT_STATE.personalReceipts,
     };
     localStorage.setItem(getStorageKey(), JSON.stringify(loaded));
     return loaded;
   } catch (e) {
     console.warn('Could not load shared ledger state, using local fallback.', e);
-    return localState || { ...DEFAULT_STATE };
+    return normalizeState(localState || DEFAULT_STATE);
   }
 }
 
@@ -150,6 +152,7 @@ function normalizeState(data) {
     expenses: Array.isArray(data?.expenses) ? data.expenses : DEFAULT_STATE.expenses,
     settlements: Array.isArray(data?.settlements) ? data.settlements : DEFAULT_STATE.settlements,
     budgetExpenses: Array.isArray(data?.budgetExpenses) ? data.budgetExpenses : DEFAULT_STATE.budgetExpenses,
+    personalReceipts: Array.isArray(data?.personalReceipts) ? data.personalReceipts : DEFAULT_STATE.personalReceipts,
   };
 }
 
@@ -159,6 +162,7 @@ function getStateSignature(nextState) {
     expenses: nextState.expenses,
     settlements: nextState.settlements,
     budgetExpenses: nextState.budgetExpenses,
+    personalReceipts: nextState.personalReceipts,
   });
 }
 
@@ -248,6 +252,25 @@ async function createBudgetExpense(expense) {
 async function deleteBudgetExpenseById(id) {
   const response = await apiFetch(`/api/budget-expenses/${encodeURIComponent(id)}`, { method: 'DELETE' });
   if (!response.ok) throw new Error('Could not delete personal expense.');
+}
+
+async function saveBudgetGraphCategories(categories) {
+  const response = await apiFetch('/api/auth/budget-settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categories }) });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error || 'Could not save graph settings.');
+  return payload.budgetGraphCategories;
+}
+
+async function createPersonalReceipt(receipt) {
+  const response = await apiFetch('/api/personal-receipts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(receipt) });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error || 'Could not save receipt photo.');
+  return payload;
+}
+
+async function deletePersonalReceiptById(id) {
+  const response = await apiFetch(`/api/personal-receipts/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error('Could not delete receipt photo.');
 }
 
 async function createSettlement(settlement) {
@@ -359,6 +382,14 @@ const budgetSummaryEmpty = document.getElementById('budget-summary-empty');
 const budgetTotalChart = document.getElementById('budget-total-chart');
 const budgetTotalEmpty = document.getElementById('budget-total-empty');
 const budgetBreakdown = document.getElementById('budget-breakdown');
+const receiptUploadForm = document.getElementById('receipt-upload-form');
+const receiptStore = document.getElementById('receipt-store');
+const receiptImage = document.getElementById('receipt-image');
+const receiptUploadStatus = document.getElementById('receipt-upload-status');
+const personalReceiptList = document.getElementById('personal-receipt-list');
+const personalReceiptEmpty = document.getElementById('personal-receipt-empty');
+const budgetGraphSettings = document.getElementById('budget-graph-settings');
+const budgetGraphSelection = document.getElementById('budget-graph-selection');
 
 const logPaymentList = document.getElementById('log-payment-list');
 const logPaymentEmpty = document.getElementById('log-payment-empty');
@@ -724,6 +755,128 @@ async function deleteExpense(id) {
 // PERSONAL BUDGET
 // =============================================================
 const BUDGET_CATEGORIES = ['groceries', 'eat-out', 'rent', 'fun', 'other'];
+const GRAPH_CATEGORIES = [...BUDGET_CATEGORIES, 'gas', 'electric', 'internet'];
+
+function selectedBudgetGraphCategories() {
+  const saved = currentUser?.budgetGraphCategories;
+  const selected = Array.isArray(saved) ? saved.filter((category) => GRAPH_CATEGORIES.includes(category)) : [];
+  return selected.length ? selected : GRAPH_CATEGORIES;
+}
+
+function graphCategoryLabel(category) {
+  return BUDGET_CATEGORIES.includes(category) ? budgetCategoryLabel(category) : categoryLabel(category);
+}
+
+function renderBudgetGraphSettings() {
+  const selected = selectedBudgetGraphCategories();
+  budgetGraphSelection.textContent = selected.length === GRAPH_CATEGORIES.length ? 'All categories' : `${selected.length} selected`;
+  budgetGraphSettings.innerHTML = '';
+  GRAPH_CATEGORIES.forEach((category) => {
+    const label = document.createElement('label');
+    label.className = 'budget-graph-option';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = selected.includes(category);
+    input.addEventListener('change', async () => {
+      const next = [...budgetGraphSettings.querySelectorAll('input:checked')].map((item) => item.value);
+      if (!next.length) {
+        input.checked = true;
+        alert('Choose at least one category for your Total graph.');
+        return;
+      }
+      try {
+        const saved = await saveBudgetGraphCategories(next);
+        currentUser = { ...currentUser, budgetGraphCategories: saved };
+        renderBudget();
+      } catch (error) {
+        input.checked = !input.checked;
+        alert(error.message || 'Could not save graph settings.');
+      }
+    });
+    input.value = category;
+    label.append(input, document.createTextNode(graphCategoryLabel(category)));
+    budgetGraphSettings.appendChild(label);
+  });
+}
+
+function receiptImageData(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      let longestSide = Math.max(image.naturalWidth, image.naturalHeight);
+      let size = Math.min(1800, longestSide);
+      const canvas = document.createElement('canvas');
+      const draw = (quality) => {
+        const scale = size / longestSide;
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL('image/jpeg', quality);
+      };
+      let result = draw(0.84);
+      while (result.length > 2_400_000 && size > 1000) {
+        size = Math.round(size * 0.82);
+        result = draw(0.76);
+      }
+      if (result.length > 2_400_000) return reject(new Error('That photo is too large. Please retake it closer to the receipt.'));
+      resolve(result);
+    };
+    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read that receipt image.')); };
+    image.src = url;
+  });
+}
+
+function renderPersonalReceipts() {
+  const receipts = [...state.personalReceipts].sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  personalReceiptList.innerHTML = '';
+  personalReceiptEmpty.style.display = receipts.length ? 'none' : 'block';
+  receipts.forEach((receipt) => {
+    const card = document.createElement('article');
+    card.className = 'personal-receipt-card';
+    const image = document.createElement('img');
+    image.src = receipt.image;
+    image.alt = `Receipt from ${receipt.store}`;
+    image.loading = 'lazy';
+    const meta = document.createElement('div');
+    meta.className = 'personal-receipt-meta';
+    const details = document.createElement('div');
+    details.innerHTML = `<strong>${escapeHtml(receipt.store)}</strong><span>${escapeHtml(formatDate(String(receipt.createdAt || '').slice(0, 10)))}</span>`;
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'personal-receipt-delete';
+    remove.textContent = 'Delete';
+    remove.addEventListener('click', async () => {
+      try {
+        await deletePersonalReceiptById(receipt.id);
+        state.personalReceipts = state.personalReceipts.filter((item) => item.id !== receipt.id);
+        saveLocalState();
+        renderPersonalReceipts();
+      } catch (error) { alert(error.message || 'Could not delete receipt photo.'); }
+    });
+    meta.append(details, remove);
+    card.append(image, meta);
+    personalReceiptList.appendChild(card);
+  });
+}
+
+receiptUploadForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const file = receiptImage.files?.[0];
+  if (!file) return;
+  receiptUploadStatus.textContent = 'Compressing receipt photo…';
+  try {
+    const image = await receiptImageData(file);
+    receiptUploadStatus.textContent = 'Saving receipt…';
+    const saved = await createPersonalReceipt({ store: receiptStore.value.trim(), image });
+    state.personalReceipts.unshift(saved);
+    saveLocalState();
+    receiptUploadForm.reset();
+    receiptUploadStatus.textContent = 'Receipt saved.';
+    renderPersonalReceipts();
+  } catch (error) { receiptUploadStatus.textContent = error.message || 'Could not save receipt photo.'; }
+});
 let selectedBudgetMonth = null;
 const openLogMonths = {
   budget: new Set(),
@@ -813,17 +966,17 @@ function budgetChartMaximum(maximumCents) {
 }
 
 function renderBudgetBreakdown(month, totals) {
-  const monthTotal = Object.values(totals).reduce((sum, cents) => sum + cents, 0);
+  const monthTotal = selectedBudgetGraphCategories().reduce((sum, category) => sum + totals[category], 0);
   budgetBreakdown.hidden = false;
   budgetBreakdown.innerHTML = `<div class="budget-breakdown-heading"><div><span class="budget-breakdown-eyebrow">Spending breakdown</span><h3>${formatBillingMonth(month)}</h3></div><strong>${money(monthTotal / 100)}</strong></div>`;
   const categoryList = document.createElement('div');
   categoryList.className = 'budget-breakdown-list';
-  [...BUDGET_CATEGORIES, 'utilities'].forEach((category) => {
+  selectedBudgetGraphCategories().forEach((category) => {
     const categoryTotal = totals[category] || 0;
     const percentage = monthTotal ? categoryTotal / monthTotal * 100 : 0;
     const row = document.createElement('div');
     row.className = `budget-breakdown-row budget-breakdown-${category}`;
-    const label = category === 'utilities' ? 'Utilities' : budgetCategoryLabel(category);
+    const label = graphCategoryLabel(category);
     row.innerHTML = `<div class="budget-breakdown-label"><span>${escapeHtml(label)}</span><span>${money(categoryTotal / 100)} <small>${Math.round(percentage)}%</small></span></div><div class="budget-breakdown-track"><span style="width:${percentage}%"></span></div>`;
     categoryList.appendChild(row);
   });
@@ -866,6 +1019,8 @@ async function deleteBudgetExpense(id) {
 }
 
 function renderBudget() {
+  renderBudgetGraphSettings();
+  renderPersonalReceipts();
   const expenses = [...state.budgetExpenses].sort((a, b) => `${b.date || ''}${b.createdAt || ''}`.localeCompare(`${a.date || ''}${a.createdAt || ''}`));
   budgetSummaryList.innerHTML = '';
   budgetSummaryEmpty.style.display = expenses.length ? 'none' : 'block';
@@ -888,7 +1043,7 @@ function renderBudget() {
   wrapLogRowsByMonth(budgetSummaryList, 'budget');
 
   const months = new Map();
-  const emptyMonthTotals = () => ({ ...Object.fromEntries(BUDGET_CATEGORIES.map((category) => [category, 0])), utilities: 0 });
+  const emptyMonthTotals = () => Object.fromEntries(GRAPH_CATEGORIES.map((category) => [category, 0]));
   expenses.forEach((expense) => {
     const month = String(expense.date || '').slice(0, 7) || 'unknown';
     if (!months.has(month)) months.set(month, emptyMonthTotals());
@@ -906,7 +1061,7 @@ function renderBudget() {
       const accountShareCents = baseShareCents + (accountIndex < remainder ? 1 : 0);
       const month = expense.month || String(expense.date || '').slice(0, 7) || 'unknown';
       if (!months.has(month)) months.set(month, emptyMonthTotals());
-      months.get(month).utilities += accountShareCents;
+      months.get(month)[expenseCategory(expense)] += accountShareCents;
     });
   budgetTotalChart.innerHTML = '';
   budgetTotalEmpty.style.display = months.size ? 'none' : 'block';
@@ -919,7 +1074,7 @@ function renderBudget() {
 
   const monthEntries = [...months.entries()].sort(([a], [b]) => a.localeCompare(b));
   if (!months.has(selectedBudgetMonth)) selectedBudgetMonth = null;
-  const maximumCents = Math.max(...monthEntries.map(([, totals]) => Object.values(totals).reduce((sum, cents) => sum + cents, 0)), 1);
+  const maximumCents = Math.max(...monthEntries.map(([, totals]) => selectedBudgetGraphCategories().reduce((sum, category) => sum + totals[category], 0)), 1);
   const chartMaximumCents = budgetChartMaximum(maximumCents);
   const yAxis = document.createElement('div');
   yAxis.className = 'budget-y-axis';
@@ -935,7 +1090,7 @@ function renderBudget() {
   plot.appendChild(gridLines);
   budgetTotalChart.append(yAxis, plot);
   monthEntries.forEach(([month, totals]) => {
-    const monthTotal = Object.values(totals).reduce((sum, cents) => sum + cents, 0);
+    const monthTotal = selectedBudgetGraphCategories().reduce((sum, category) => sum + totals[category], 0);
     const item = document.createElement('div');
     item.className = 'budget-bar-item';
     item.setAttribute('role', 'listitem');

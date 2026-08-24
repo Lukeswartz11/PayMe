@@ -148,6 +148,7 @@
         <div class="section-tabs budget-tabs" role="tablist" aria-label="Personal budget views">
           <button id="budget-tab-log" class="section-tab-button" type="button" role="tab" aria-selected="true" aria-controls="budget-panel-log" data-budget-tab="log">Log expense</button>
           <button id="budget-tab-summary" class="section-tab-button" type="bubar to see where the mtton" role="tab" aria-selected="false" aria-controls="budget-panel-summary" data-budget-tab="summary">Summary</button>
+          <button id="budget-tab-receipts" class="section-tab-button" type="button" role="tab" aria-selected="false" aria-controls="budget-panel-receipts" data-budget-tab="receipts">Receipts</button>
           <button id="budget-tab-total" class="section-tab-button" type="button" role="tab" aria-selected="false" aria-controls="budget-panel-total" data-budget-tab="total">Total</button>
         </div>
         <section id="budget-panel-log" class="group-subpanel" role="tabpanel" aria-labelledby="budget-tab-log">
@@ -166,9 +167,26 @@
           <p id="budget-summary-empty" class="empty-note">No personal expenses recorded yet.</p>
         </section>
         <section id="budget-panel-total" class="group-subpanel" role="tabpanel" aria-labelledby="budget-tab-total" hidden>
+          <details class="budget-graph-filter">
+            <summary><span>Graph categories</span><span id="budget-graph-selection" class="budget-graph-selection"></span></summary>
+            <p>Choose what appears in your personal Total graph.</p>
+            <form id="budget-graph-settings" class="budget-graph-settings"></form>
+          </details>
           <div id="budget-total-chart" class="budget-chart" role="list" aria-label="Monthly personal spending"></div>
           <p id="budget-total-empty" class="empty-note">No personal expenses recorded yet.</p>
           <section id="budget-breakdown" class="budget-breakdown" aria-live="polite" hidden></section>
+        </section>
+        <section id="budget-panel-receipts" class="group-subpanel" role="tabpanel" aria-labelledby="budget-tab-receipts" hidden>
+          <h3 class="receipt-subtitle">Personal receipt photos</h3>
+          <p class="panel-hint">Photos are compressed before upload and are visible only from your account.</p>
+          <form id="receipt-upload-form" class="expense-form budget-form">
+            <div class="field"><label for="receipt-store">Store</label><input id="receipt-store" type="text" maxlength="60" placeholder="e.g. Giant Eagle" required></div>
+            <div class="field"><label for="receipt-image">Receipt photo</label><input id="receipt-image" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" required></div>
+            <button type="submit" class="btn btn-red btn-wide">Save receipt</button>
+          </form>
+          <p id="receipt-upload-status" class="panel-hint" aria-live="polite"></p>
+          <div id="personal-receipt-list" class="personal-receipt-list"></div>
+          <p id="personal-receipt-empty" class="empty-note">No personal receipt photos saved yet.</p>
         </section>
       </section>
 
