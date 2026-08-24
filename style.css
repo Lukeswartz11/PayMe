@@ -897,11 +897,19 @@ input:focus-visible, select:focus-visible, button:focus-visible {
 .budget-graph-option input { accent-color: var(--stamp-red-ink); }
 .personal-receipt-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: 0.9rem; margin-top: 1rem; }
 .personal-receipt-card { overflow: hidden; border: 1px solid var(--paper-line); border-radius: 6px; background: var(--card); }
-.personal-receipt-card img { display: block; width: 100%; max-height: 18rem; object-fit: contain; background: #fff; }
 .personal-receipt-meta { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.65rem; }
 .personal-receipt-meta strong, .personal-receipt-meta span { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .personal-receipt-meta span { color: var(--ink-faint); font: 0.7rem var(--font-mono); }
+.personal-receipt-actions { display: flex; align-items: center; gap: 0.45rem; flex-shrink: 0; }
+.personal-receipt-view, .personal-receipt-delete { border: 0; background: none; font: 700 0.7rem var(--font-mono); cursor: pointer; }
+.personal-receipt-view { color: var(--ink); text-decoration: underline; text-underline-offset: 0.18em; }
 .personal-receipt-delete { border: 0; background: none; color: var(--stamp-red-ink); font: 700 0.7rem var(--font-mono); cursor: pointer; }
+#budget-receipt-status { grid-column: 1 / -1; min-height: 1.1em; margin: -0.25rem 0 0; }
+.personal-receipt-viewer { width: min(94vw, 46rem); max-height: 92dvh; padding: 0; overflow: hidden; border: 1px solid var(--paper-line); border-radius: 8px; background: var(--card); box-shadow: 0 1rem 3rem var(--shadow); }
+.personal-receipt-viewer::backdrop { background: color-mix(in srgb, #000 65%, transparent); }
+.personal-receipt-viewer-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.75rem 0.9rem; font: 700 0.82rem var(--font-mono); }
+.personal-receipt-viewer-head button { border: 0; background: none; color: var(--stamp-red-ink); font: 1.6rem/1 var(--font-mono); cursor: pointer; }
+.personal-receipt-viewer img { display: block; width: 100%; max-height: calc(92dvh - 3.4rem); object-fit: contain; background: #fff; }
 .receipt-tab-button, .section-tab-button { padding: 0.65rem 0.45rem; border: 1.5px solid transparent; border-radius: 4px; background: transparent; color: var(--ink-soft); font: 700 0.72rem var(--font-mono); cursor: pointer; }
 .receipt-tab-button:hover, .section-tab-button:hover { border-color: var(--paper-line); color: var(--ink); }
 .receipt-tab-button[aria-selected="true"], .section-tab-button[aria-selected="true"] { border-color: var(--stamp-red-ink); background: var(--stamp-red); color: var(--paper); }

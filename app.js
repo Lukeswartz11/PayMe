@@ -382,14 +382,16 @@ const budgetSummaryEmpty = document.getElementById('budget-summary-empty');
 const budgetTotalChart = document.getElementById('budget-total-chart');
 const budgetTotalEmpty = document.getElementById('budget-total-empty');
 const budgetBreakdown = document.getElementById('budget-breakdown');
-const receiptUploadForm = document.getElementById('receipt-upload-form');
-const receiptStore = document.getElementById('receipt-store');
-const receiptImage = document.getElementById('receipt-image');
-const receiptUploadStatus = document.getElementById('receipt-upload-status');
+const budgetReceiptImage = document.getElementById('budget-receipt-image');
+const budgetReceiptStatus = document.getElementById('budget-receipt-status');
 const personalReceiptList = document.getElementById('personal-receipt-list');
 const personalReceiptEmpty = document.getElementById('personal-receipt-empty');
 const budgetGraphSettings = document.getElementById('budget-graph-settings');
 const budgetGraphSelection = document.getElementById('budget-graph-selection');
+const personalReceiptViewer = document.getElementById('personal-receipt-viewer');
+const personalReceiptViewerTitle = document.getElementById('personal-receipt-viewer-title');
+const personalReceiptViewerImage = document.getElementById('personal-receipt-viewer-image');
+const personalReceiptViewerClose = document.getElementById('personal-receipt-viewer-close');
 
 const logPaymentList = document.getElementById('log-payment-list');
 const logPaymentEmpty = document.getElementById('log-payment-empty');
@@ -835,10 +837,6 @@ function renderPersonalReceipts() {
   receipts.forEach((receipt) => {
     const card = document.createElement('article');
     card.className = 'personal-receipt-card';
-    const image = document.createElement('img');
-    image.src = receipt.image;
-    image.alt = `Receipt from ${receipt.store}`;
-    image.loading = 'lazy';
     const meta = document.createElement('div');
     meta.className = 'personal-receipt-meta';
     const details = document.createElement('div');
@@ -855,28 +853,27 @@ function renderPersonalReceipts() {
         renderPersonalReceipts();
       } catch (error) { alert(error.message || 'Could not delete receipt photo.'); }
     });
-    meta.append(details, remove);
-    card.append(image, meta);
+    const view = document.createElement('button');
+    view.type = 'button';
+    view.className = 'personal-receipt-view';
+    view.textContent = 'View photo';
+    view.addEventListener('click', () => {
+      personalReceiptViewerTitle.textContent = receipt.store;
+      personalReceiptViewerImage.src = receipt.image;
+      personalReceiptViewerImage.alt = `Receipt from ${receipt.store}`;
+      personalReceiptViewer.showModal();
+    });
+    const actions = document.createElement('div');
+    actions.className = 'personal-receipt-actions';
+    actions.append(view, remove);
+    meta.append(details, actions);
+    card.append(meta);
     personalReceiptList.appendChild(card);
   });
 }
 
-receiptUploadForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const file = receiptImage.files?.[0];
-  if (!file) return;
-  receiptUploadStatus.textContent = 'Compressing receipt photo…';
-  try {
-    const image = await receiptImageData(file);
-    receiptUploadStatus.textContent = 'Saving receipt…';
-    const saved = await createPersonalReceipt({ store: receiptStore.value.trim(), image });
-    state.personalReceipts.unshift(saved);
-    saveLocalState();
-    receiptUploadForm.reset();
-    receiptUploadStatus.textContent = 'Receipt saved.';
-    renderPersonalReceipts();
-  } catch (error) { receiptUploadStatus.textContent = error.message || 'Could not save receipt photo.'; }
-});
+personalReceiptViewerClose.addEventListener('click', () => personalReceiptViewer.close());
+personalReceiptViewer.addEventListener('click', (event) => { if (event.target === personalReceiptViewer) personalReceiptViewer.close(); });
 let selectedBudgetMonth = null;
 const openLogMonths = {
   budget: new Set(),
@@ -996,11 +993,27 @@ budgetForm.addEventListener('submit', async (event) => {
   try {
     const savedExpense = await createBudgetExpense(expense);
     state.budgetExpenses.unshift(savedExpense);
+    const receiptFile = budgetReceiptImage.files?.[0];
+    if (receiptFile) {
+      budgetReceiptStatus.textContent = 'Compressing receipt photo…';
+      try {
+        const image = await receiptImageData(receiptFile);
+        budgetReceiptStatus.textContent = 'Saving receipt…';
+        const savedReceipt = await createPersonalReceipt({ store: expense.desc, image });
+        state.personalReceipts.unshift(savedReceipt);
+        budgetReceiptStatus.textContent = 'Receipt attached.';
+      } catch (receiptError) {
+        budgetReceiptStatus.textContent = receiptError.message || 'Your expense was saved, but the receipt photo was not.';
+      }
+    } else {
+      budgetReceiptStatus.textContent = '';
+    }
     saveLocalState();
     budgetDescription.value = '';
     autofillBudgetDescription();
     budgetAmount.value = '';
     budgetDate.value = currentEasternDate();
+    budgetReceiptImage.value = '';
     renderBudget();
   } catch (error) {
     alert(error.message || 'Could not save personal expense.');

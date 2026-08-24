@@ -158,6 +158,8 @@
             <div class="field field-other-description"><label for="budget-description">Description</label><input id="budget-description" type="text" maxlength="60" placeholder="What did you buy?" required></div>
             <div class="field field-amount"><label for="budget-amount">Amount</label><div class="amount-wrap"><span>$</span><input id="budget-amount" type="number" min="0.01" step="0.01" placeholder="0.00" required></div></div>
             <div class="field budget-date-field"><label for="budget-date">Date</label><input id="budget-date" type="date" required></div>
+            <div class="field budget-receipt-field"><label for="budget-receipt-image">Add receipt <small>(optional)</small></label><input id="budget-receipt-image" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"></div>
+            <p id="budget-receipt-status" class="panel-hint" aria-live="polite"></p>
             <button type="submit" class="btn btn-red btn-wide">Add personal expense</button>
           </form>
         </section>
@@ -178,17 +180,16 @@
         </section>
         <section id="budget-panel-receipts" class="group-subpanel" role="tabpanel" aria-labelledby="budget-tab-receipts" hidden>
           <h3 class="receipt-subtitle">Personal receipt photos</h3>
-          <p class="panel-hint">Photos are compressed before upload and are visible only from your account.</p>
-          <form id="receipt-upload-form" class="expense-form budget-form">
-            <div class="field"><label for="receipt-store">Store</label><input id="receipt-store" type="text" maxlength="60" placeholder="e.g. Giant Eagle" required></div>
-            <div class="field"><label for="receipt-image">Receipt photo</label><input id="receipt-image" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" required></div>
-            <button type="submit" class="btn btn-red btn-wide">Save receipt</button>
-          </form>
-          <p id="receipt-upload-status" class="panel-hint" aria-live="polite"></p>
+          <p class="panel-hint">Receipt photos are attached while logging an expense. Select one to view it.</p>
           <div id="personal-receipt-list" class="personal-receipt-list"></div>
           <p id="personal-receipt-empty" class="empty-note">No personal receipt photos saved yet.</p>
         </section>
       </section>
+
+      <dialog id="personal-receipt-viewer" class="personal-receipt-viewer">
+        <div class="personal-receipt-viewer-head"><strong id="personal-receipt-viewer-title">Receipt</strong><button id="personal-receipt-viewer-close" type="button" aria-label="Close receipt">×</button></div>
+        <img id="personal-receipt-viewer-image" alt="Selected receipt">
+      </dialog>
 
       <!-- EXPENSE LIST -->
       <section id="panel-tally" class="panel receipt-panel tab-panel" role="tabpanel" aria-labelledby="tab-tally" hidden>
