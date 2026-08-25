@@ -1,5 +1,105 @@
 {
-  "people": ["Luke", "Andrew", "Logan", "Kai", "Carson", "conner"],
-  "expenses": [],
-  "settlements": []
+  "people": [
+    "Luke"
+  ],
+  "expenses": [
+    {
+      "id": "vrjlacqi",
+      "desc": "wood",
+      "category": "other",
+      "amount": 15,
+      "paidBy": "Luke",
+      "splitAmong": [
+        "Luke"
+      ],
+      "date": "2026-08-25",
+      "month": "2026-08",
+      "createdBy": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
+      "createdAt": "2026-08-25T06:10:32.488Z",
+      "reminders": []
+    },
+    {
+      "id": "0ncu15fc",
+      "desc": "Gas",
+      "category": "gas",
+      "amount": 5,
+      "paidBy": "Luke",
+      "splitAmong": [
+        "Luke"
+      ],
+      "date": "2026-08-25",
+      "month": "2026-08",
+      "createdBy": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
+      "createdAt": "2026-08-25T05:12:45.365Z",
+      "reminders": []
+    }
+  ],
+  "settlements": [],
+  "budgetExpenses": [
+    {
+      "id": "tujw6reu",
+      "ownerId": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
+      "category": "groceries",
+      "desc": "Groceries",
+      "amount": 35,
+      "date": "2026-08-25",
+      "createdAt": "2026-08-25T05:28:44.326Z"
+    },
+    {
+      "id": "qt65hsau",
+      "ownerId": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
+      "category": "groceries",
+      "desc": "Groceries",
+      "amount": 10,
+      "date": "2026-08-25",
+      "createdAt": "2026-08-25T05:21:48.569Z"
+    },
+    {
+      "id": "peklav9a",
+      "ownerId": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
+      "category": "groceries",
+      "desc": "Groceries",
+      "amount": 5,
+      "date": "2026-08-25",
+      "createdAt": "2026-08-25T05:12:55.266Z"
+    }
+  ],
+  "personalReceipts": [],
+  "users": [
+    {
+      "id": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
+      "name": "Luke",
+      "isDeveloper": true,
+      "salt": "8e6b4a570e5258e5f8934b62f81d418d",
+      "passwordHash": "d225606ac86f3ce9968a825c742bf9afdd7e1a9267b7539defbb10e96f66ae6d2019aa2f6785b1cf6153a99459f182090f5022ac19188a861f7b54dfe6344a83",
+      "createdAt": "2026-08-25T05:02:20.150Z",
+      "authSessions": [
+        {
+          "tokenHash": "72f69b65cb53f8e70643aa8bbd4fcecc128f90e670018fd5b53573fbc57fe6dd",
+          "createdAt": "2026-08-25T05:12:08.137Z",
+          "expiresAt": 1787721128137
+        },
+        {
+          "tokenHash": "683ffd48283c6980a490968bff7d596f2618373566b07997d381d9b50e9e5026",
+          "createdAt": "2026-08-25T05:21:27.097Z",
+          "expiresAt": 1787721687097
+        },
+        {
+          "tokenHash": "9d16a9ba0db477869bacabc75dcdaa40edfd99fff28a7544429020df6f53639c",
+          "createdAt": "2026-08-25T05:26:46.800Z",
+          "expiresAt": 1787722006800
+        },
+        {
+          "tokenHash": "de98f5d6817948e5cdb8db0116caf80ebc75263e74af326537961834aed08eff",
+          "createdAt": "2026-08-25T05:36:52.203Z",
+          "expiresAt": 1787722612203
+        },
+        {
+          "tokenHash": "2e75e8ccb77017f13c57def25d51e75e60a9859bd8e0d7ee57778e2aa22506b5",
+          "createdAt": "2026-08-25T06:05:42.362Z",
+          "expiresAt": 1787724342362
+        }
+      ]
+    }
+  ]
 }

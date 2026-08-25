@@ -369,6 +369,7 @@ const utilityBreakdown = document.getElementById('utility-breakdown');
 const balancesGrid = document.getElementById('balances-grid');
 const settleList = document.getElementById('settle-list');
 const settleEmpty = document.getElementById('settle-empty');
+const balanceHero = document.getElementById('balance-hero');
 
 const paymentForm = document.getElementById('payment-form');
 const paymentFrom = document.getElementById('payment-from');
@@ -1732,9 +1733,11 @@ function renderBalances(balance, scores) {
       caption = 'owes the house';
     }
     const score = Math.round(scores[name] || 850);
+    const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || '?';
+    card.dataset.balanceStatus = cls;
     card.innerHTML = `
       <div class="balance-header">
-        <p class="balance-name">${escapeHtml(name)}</p>
+        <div class="balance-person"><span class="balance-avatar" aria-hidden="true">${escapeHtml(initials)}</span><p class="balance-name">${escapeHtml(name)}</p></div>
         <span class="credit-score">${score}</span>
       </div>
       <p class="balance-amount ${cls}">${money(Math.abs(amt) < 0.005 ? 0 : amt)}</p>
@@ -1742,6 +1745,34 @@ function renderBalances(balance, scores) {
     `;
     balancesGrid.appendChild(card);
   });
+}
+
+function renderBalanceHero(balance) {
+  const settlements = computeSettlements(balance);
+  const totalOutstanding = Object.values(balance)
+    .filter((amount) => amount > 0.005)
+    .reduce((sum, amount) => sum + amount, 0);
+  const peopleWithBalances = Object.values(balance).filter((amount) => Math.abs(amount) > 0.005).length;
+  const activeExpenseCount = state.expenses.filter(isActiveExpense).length;
+  const householdSpend = state.expenses.filter(isActiveExpense).reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  const stats = `<div class="balance-hero-stats"><span><strong>${state.people.length}</strong> ${state.people.length === 1 ? 'roommate' : 'roommates'}</span><span><strong>${activeExpenseCount}</strong> shared entries</span><span><strong>${money(householdSpend)}</strong> logged</span></div>`;
+  balanceHero.classList.toggle('is-settled', !settlements.length);
+
+  if (!settlements.length) {
+    balanceHero.innerHTML = `<div class="balance-hero-copy"><p class="balance-hero-kicker">House status <span class="balance-hero-live-dot" aria-hidden="true"></span></p><p class="balance-hero-amount">All square</p><p class="balance-hero-detail">No open balances.</p>${stats}</div><div class="balance-hero-mark" aria-hidden="true">✓</div>`;
+    return;
+  }
+
+  const next = settlements[0];
+  balanceHero.innerHTML = `
+    <div class="balance-hero-copy">
+      <p class="balance-hero-kicker">Open household balance</p>
+      <p class="balance-hero-amount">${money(totalOutstanding)}</p>
+      <p class="balance-hero-detail">${peopleWithBalances} ${peopleWithBalances === 1 ? 'person has' : 'people have'} an open balance · next: ${escapeHtml(next.from)} pays ${escapeHtml(next.to)}</p>${stats}
+    </div>
+    <div class="balance-hero-action"><span class="balance-hero-count">${settlements.length} ${settlements.length === 1 ? 'payment' : 'payments'} to clear</span><button id="balance-hero-view" type="button" class="balance-hero-button">View balances <span aria-hidden="true">→</span></button></div>
+  `;
+  document.getElementById('balance-hero-view')?.addEventListener('click', () => document.getElementById('balance-tab-balances')?.click());
 }
 
 // =============================================================
@@ -1776,14 +1807,27 @@ function renderSettlements(txns) {
   txns.forEach((t) => {
     const li = document.createElement('li');
     li.className = 'settle-row';
+    const canPay = currentUser?.isDeveloper || currentUser?.name === t.from;
     li.innerHTML = `
-      <span>${escapeHtml(t.from)}</span>
-      <span class="arrow">&rarr;</span>
-      <span>${escapeHtml(t.to)}</span>
-      <span class="amount">${money(t.amount)}</span>
+      <div class="settle-route"><span>${escapeHtml(t.from)}</span><span class="arrow" aria-hidden="true">&rarr;</span><span>${escapeHtml(t.to)}</span></div>
+      <div class="settle-actions"><span class="amount">${money(t.amount)}</span>${canPay ? '<button type="button" class="settle-pay-button">Pay now <span aria-hidden="true">→</span></button>' : ''}</div>
     `;
+    li.querySelector('.settle-pay-button')?.addEventListener('click', () => startSettlementPayment(t));
     settleList.appendChild(li);
   });
+}
+
+function startSettlementPayment(settlement) {
+  activateTab('pay');
+  renderPaymentOptions();
+  paymentFrom.value = settlement.from;
+  renderPaymentOptions();
+  paymentTo.value = settlement.to;
+  paymentAmount.value = settlement.amount.toFixed(2);
+  paymentDescription.value = 'Settle up';
+  updatePaymentLimit();
+  document.getElementById('panel-pay')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  window.setTimeout(() => paymentDescription.focus(), 350);
 }
 
 // =============================================================
@@ -2148,6 +2192,7 @@ function renderAll() {
   renderExpenses();
   const balance = computeBalances();
   const creditScores = computeCreditScores();
+  renderBalanceHero(balance);
   renderBalances(balance, creditScores);
   renderPaymentOptions();
   renderSettlements(computeSettlements(balance));
