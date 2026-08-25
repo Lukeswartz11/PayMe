@@ -1,0 +1,19 @@
+name: Create daily data backup
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Back up Firebase ledger
+        if: ${{ secrets.BACKUP_CRON_SECRET != '' }}
+        env:
+          BACKUP_SECRET: ${{ secrets.BACKUP_CRON_SECRET }}
+        run: |
+          curl --fail --silent --show-error \
+            -X POST "https://payme-9w80.onrender.com/api/backups/run" \
+            -H "x-backup-secret: $BACKUP_SECRET"
