@@ -99,6 +99,16 @@
           "createdAt": "2026-08-25T06:05:42.362Z",
           "expiresAt": 1787724342362
         }
+      ],
+      "budgetGraphCategories": [
+        "groceries",
+        "eat-out",
+        "rent",
+        "fun",
+        "other",
+        "gas",
+        "electric",
+        "internet"
       ]
     }
   ]

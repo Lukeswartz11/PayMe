@@ -764,6 +764,8 @@ async function deleteExpense(id) {
 // =============================================================
 const BUDGET_CATEGORIES = ['groceries', 'eat-out', 'rent', 'fun', 'other'];
 const GRAPH_CATEGORIES = [...BUDGET_CATEGORIES, 'gas', 'electric', 'internet'];
+let budgetGraphSaveInProgress = false;
+let pendingBudgetGraphCategories = null;
 
 function selectedBudgetGraphCategories() {
   const saved = currentUser?.budgetGraphCategories;
@@ -773,6 +775,27 @@ function selectedBudgetGraphCategories() {
 
 function graphCategoryLabel(category) {
   return BUDGET_CATEGORIES.includes(category) ? budgetCategoryLabel(category) : categoryLabel(category);
+}
+
+async function queueBudgetGraphCategorySave(categories) {
+  pendingBudgetGraphCategories = categories;
+  if (budgetGraphSaveInProgress) return;
+
+  budgetGraphSaveInProgress = true;
+  try {
+    while (pendingBudgetGraphCategories) {
+      const next = pendingBudgetGraphCategories;
+      pendingBudgetGraphCategories = null;
+      const saved = await saveBudgetGraphCategories(next);
+      currentUser = { ...currentUser, budgetGraphCategories: saved };
+    }
+  } catch (error) {
+    pendingBudgetGraphCategories = null;
+    alert(error.message || 'Could not save graph settings.');
+  } finally {
+    budgetGraphSaveInProgress = false;
+    renderBudget();
+  }
 }
 
 function renderBudgetGraphSettings() {
@@ -792,14 +815,7 @@ function renderBudgetGraphSettings() {
         alert('Choose at least one category for your Total graph.');
         return;
       }
-      try {
-        const saved = await saveBudgetGraphCategories(next);
-        currentUser = { ...currentUser, budgetGraphCategories: saved };
-        renderBudget();
-      } catch (error) {
-        input.checked = !input.checked;
-        alert(error.message || 'Could not save graph settings.');
-      }
+      queueBudgetGraphCategorySave(next);
     });
     input.value = category;
     label.append(input, document.createTextNode(graphCategoryLabel(category)));
