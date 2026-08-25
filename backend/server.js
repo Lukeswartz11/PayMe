@@ -19,7 +19,9 @@ const reminderCronSecret = process.env.REMINDER_CRON_SECRET || '';
 const developerAccountName = process.env.DEVELOPER_ACCOUNT_NAME || 'Luke';
 const developerAccountPassword = process.env.DEVELOPER_ACCOUNT_PASSWORD || '';
 const backupCronSecret = process.env.BACKUP_CRON_SECRET || '';
+const householdInviteCode = process.env.HOUSEHOLD_INVITE_CODE || '';
 const allowedOrigins = new Set((process.env.ALLOWED_ORIGINS || 'https://lukeswartz11.github.io,https://payme-9w80.onrender.com,http://localhost:3000,http://localhost:5500').split(',').map((origin) => origin.trim()).filter(Boolean));
+const publicAssetPaths = new Set(['/', '/index.html', '/app.js', '/style.css', '/manifest.webmanifest', '/push-sw.js', '/Brutus_Front.png', '/brutus_back.jpg']);
 const legacyStarterPeople = ['Luke', 'Andrew', 'Logan', 'Kai', 'Carson', 'conner'];
 const maxAccounts = 6;
 let firebaseAccessToken = null;
@@ -103,11 +105,17 @@ app.use((req, res, next) => {
     'Referrer-Policy': 'strict-origin-when-cross-origin',
     'Permissions-Policy': 'camera=(self), geolocation=(), microphone=()',
   });
+  if (req.path.startsWith('/api/')) res.set('Cache-Control', 'no-store, private, max-age=0');
   next();
 });
 app.use(cors({ origin(origin, callback) { callback(null, !origin || allowedOrigins.has(origin)); }, credentials: false, allowedHeaders: ['Content-Type', 'Authorization'] }));
 app.use(express.json({ limit: '3mb' }));
-app.use(express.static(publicRoot));
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) return next();
+  if (!publicAssetPaths.has(req.path)) return res.status(404).end();
+  next();
+});
+app.use(express.static(publicRoot, { dotfiles: 'deny', index: 'index.html', maxAge: '1h', etag: true }));
 
 function authRateLimit(req, res, next) {
   const now = Date.now();
@@ -169,6 +177,16 @@ function validPassword(password, user) {
 
 function getUserLoginName(user) {
   return String(user.name || user.username || '').trim().toLowerCase();
+}
+
+function strongPassword(password) {
+  return password.length >= 12 && password.length <= 128 && /[a-z]/.test(password) && /[A-Z]/.test(password) && /\d/.test(password);
+}
+
+function secretMatches(value, expected) {
+  const actual = Buffer.from(String(value));
+  const target = Buffer.from(expected);
+  return actual.length === target.length && crypto.timingSafeEqual(actual, target);
 }
 
 function publicUser(user) {
@@ -272,6 +290,8 @@ function householdBalanceCents(data) {
 }
 
 function prepareHousehold(data) {
+  if (developerAccountPassword && !strongPassword(developerAccountPassword)) throw new Error('DEVELOPER_ACCOUNT_PASSWORD must use 12+ characters with uppercase, lowercase, and a number.');
+  if (householdInviteCode && householdInviteCode.length < 12) throw new Error('HOUSEHOLD_INVITE_CODE must be at least 12 characters.');
   let changed = false;
   const isUntouchedLegacyHousehold = data.people.length === legacyStarterPeople.length && legacyStarterPeople.every((person, index) => data.people[index] === person) && data.expenses.length === 0 && data.settlements.length === 0;
   if (isUntouchedLegacyHousehold) {
@@ -324,12 +344,12 @@ function createSession(user, response, remember) {
   const token = crypto.randomBytes(32).toString('hex');
   const now = Date.now();
   const activeSessions = Array.isArray(user.authSessions)
-    ? user.authSessions.filter((session) => !session.expiresAt || session.expiresAt > now)
+    ? user.authSessions.filter((session) => Number.isFinite(session.expiresAt) && session.expiresAt > now)
     : [];
   user.authSessions = [...activeSessions.slice(-9), {
     tokenHash: sessionTokenHash(token),
     createdAt: new Date(now).toISOString(),
-    expiresAt: remember ? null : now + 24 * 60 * 60 * 1000,
+    expiresAt: now + (remember ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000),
   }];
   return token;
 }
@@ -344,7 +364,7 @@ async function requireAuth(request, response, next) {
     const tokenHash = sessionTokenHash(token);
     const data = await readPreparedData();
     const now = Date.now();
-    const user = data.users.find((candidate) => Array.isArray(candidate.authSessions) && candidate.authSessions.some((session) => session.tokenHash === tokenHash && (!session.expiresAt || session.expiresAt > now)));
+    const user = data.users.find((candidate) => Array.isArray(candidate.authSessions) && candidate.authSessions.some((session) => session.tokenHash === tokenHash && Number.isFinite(session.expiresAt) && session.expiresAt > now));
     if (!user) return response.status(401).json({ error: 'Your session has expired. Please sign in again.' });
     request.userId = user.id;
     request.sessionTokenHash = tokenHash;
@@ -388,7 +408,9 @@ app.post('/api/auth/signup', authRateLimit, async (req, res) => {
     const name = String(req.body?.name || '').trim();
     const password = String(req.body?.password || '');
     if (!validName(name)) return res.status(400).json({ error: 'Enter a valid first name.' });
-    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    if (!householdInviteCode) return res.status(503).json({ error: 'Registration is closed until the household invite code is configured.' });
+    if (!secretMatches(req.body?.inviteCode || '', householdInviteCode)) return res.status(403).json({ error: 'That household invite code is not correct.' });
+    if (!strongPassword(password)) return res.status(400).json({ error: 'Use 12+ characters with uppercase, lowercase, and a number.' });
     const data = await readPreparedData();
     if (data.users.length >= maxAccounts) return res.status(403).json({ error: 'This household already has the maximum of 6 accounts.' });
     if (data.users.some((user) => getUserLoginName(user) === name.toLowerCase())) return res.status(409).json({ error: 'An account already uses that first name.' });
@@ -499,7 +521,7 @@ app.put('/api/developer/accounts/:id', requireAuth, requireDeveloper, async (req
     const name = String(req.body?.name || '').trim();
     const password = String(req.body?.password || '');
     if (!validName(name)) return res.status(400).json({ error: 'Enter a valid first name.' });
-    if (password && password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    if (password && !strongPassword(password)) return res.status(400).json({ error: 'Use 12+ characters with uppercase, lowercase, and a number.' });
     const data = await readPreparedData();
     const user = data.users.find((candidate) => candidate.id === req.params.id);
     if (!user) return res.status(404).json({ error: 'Account not found.' });
@@ -564,6 +586,29 @@ app.post('/api/auth/logout', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('POST /api/auth/logout error:', error);
     res.status(500).json({ error: 'Could not sign out.' });
+  }
+});
+
+app.put('/api/auth/password', requireAuth, authRateLimit, async (req, res) => {
+  try {
+    const currentPassword = String(req.body?.currentPassword || '');
+    const newPassword = String(req.body?.newPassword || '');
+    const data = await readPreparedData();
+    const user = data.users.find((candidate) => candidate.id === req.userId);
+    if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
+    if (user.isDeveloper) return res.status(403).json({ error: 'Update the developer password through Render environment variables.' });
+    if (!validPassword(currentPassword, user)) return res.status(401).json({ error: 'Your current password is not correct.' });
+    if (!strongPassword(newPassword)) return res.status(400).json({ error: 'Use 12+ characters with uppercase, lowercase, and a number.' });
+    const { salt, hash } = hashPassword(newPassword);
+    user.salt = salt;
+    user.passwordHash = hash;
+    user.authSessions = [];
+    const sessionToken = createSession(user, res, false);
+    await writeData(data);
+    res.json({ sessionToken });
+  } catch (error) {
+    console.error('PUT /api/auth/password error:', error);
+    res.status(500).json({ error: 'Could not update password.' });
   }
 });
 

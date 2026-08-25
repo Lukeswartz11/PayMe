@@ -24,6 +24,10 @@
         <input id="auth-username" name="name" type="text" autocomplete="given-name" maxlength="31" required>
         <label id="auth-password-field" for="auth-password">Password</label>
         <input id="auth-password" name="password" type="password" autocomplete="current-password" minlength="8" required>
+        <div id="auth-invite-field" hidden>
+          <label for="auth-invite-code">Household invite code</label>
+          <input id="auth-invite-code" name="invite-code" type="password" autocomplete="off" maxlength="128">
+        </div>
         <label class="auth-remember"><input id="auth-remember" type="checkbox"> Keep me signed in on this device</label>
         <p id="auth-error" class="auth-error" role="alert" hidden></p>
         <button id="auth-submit" type="submit" class="btn btn-red btn-wide">Sign in</button>
@@ -290,6 +294,15 @@
         </div>
       </form>
       <p id="account-name-error" class="auth-error" role="alert" hidden></p>
+      <form id="account-password-form" class="settings-row account-password-form">
+        <div class="settings-row-copy"><h3>Password</h3><p>Use 12+ characters with uppercase, lowercase, and a number. Changing it signs out your other devices.</p></div>
+        <div class="account-password-controls">
+          <label class="sr-only" for="account-current-password">Current password</label><input id="account-current-password" type="password" autocomplete="current-password" placeholder="Current password" required>
+          <label class="sr-only" for="account-new-password">New password</label><input id="account-new-password" type="password" autocomplete="new-password" minlength="12" placeholder="New password" required>
+          <button type="submit" class="settings-action-button">Update password</button>
+        </div>
+      </form>
+      <p id="account-password-error" class="auth-error" role="alert" hidden></p>
       <div class="settings-row settings-theme-row">
         <div class="settings-row-copy"><h3>Appearance</h3><p>Switch between the original light theme and Buckeye dark mode.</p></div>
         <label class="theme-switch" for="theme-toggle"><span class="sr-only">Use dark mode</span><input id="theme-toggle" type="checkbox" role="switch" aria-label="Use dark mode"><span class="theme-switch-track" aria-hidden="true"><span class="theme-switch-sun">☀</span><span class="theme-switch-moon">☾</span><span class="theme-switch-thumb"></span></span></label>

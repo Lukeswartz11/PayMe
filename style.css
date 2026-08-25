@@ -244,6 +244,8 @@ body.settings-open .settings-menu-card { touch-action: pan-y; }
 .account-name-form { font-size: 0.78rem; color: var(--ink-soft); }
 .account-name-controls { display: flex; gap: 0.5rem; }
 .account-name-controls input { min-width: 0; flex: 1; padding: 0.6rem; border: 2px solid var(--paper-line); border-radius: 4px; font: inherit; color: var(--ink); }
+.account-password-controls { display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.5rem; }
+.account-password-controls input { min-width: 0; padding: 0.6rem; border: 2px solid var(--paper-line); border-radius: 4px; font: inherit; color: var(--ink); }
 .account-name-controls button, .settings-action-button { min-width: 7.2rem; padding: 0.62rem 0.7rem; border: 2px solid var(--stamp-red-ink); border-radius: 4px; background: var(--paper); color: var(--stamp-red-ink); font: 700 0.68rem var(--font-mono); text-transform: uppercase; cursor: pointer; }
 .account-name-controls button:hover, .settings-action-button:hover { background: var(--stamp-red); color: var(--paper); }
 .settings-notifications { margin: 0; }
@@ -1464,6 +1466,7 @@ html[data-theme="dark"] ::selection { background: #BA0C2F; color: #FFF; }
   .settings-notifications { align-items: flex-start; flex-direction: column; }
   .settings-row { align-items: stretch; flex-direction: column; }
   .account-name-controls { width: 100%; }
+  .account-password-controls { grid-template-columns: 1fr; width: 100%; }
   .receipt-tabs { grid-template-columns: 1fr 1fr; }
   .section-tabs.budget-tabs { grid-template-columns: 1fr 1fr; }
   .budget-graph-settings { grid-template-columns: 1fr; }

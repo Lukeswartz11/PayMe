@@ -23,9 +23,16 @@ DEVELOPER_ACCOUNT_NAME=Luke
 DEVELOPER_ACCOUNT_PASSWORD=<a new, unique password of at least 16 characters>
 ALLOWED_ORIGINS=https://lukeswartz11.github.io,https://payme-9w80.onrender.com
 BACKUP_CRON_SECRET=<a separate long random secret>
+HOUSEHOLD_INVITE_CODE=<a private 12+ character code for creating a roommate account>
 ```
 
 `DEVELOPER_ACCOUNT_PASSWORD` rotates the existing developer account to that new password and invalidates its old sessions. Never put this password in GitHub, source code, or a chat message.
+
+Keep Firebase Realtime Database Rules locked down because only the backend service account should access the database directly:
+
+```json
+{ "rules": { ".read": false, ".write": false } }
+```
 
 The daily GitHub Actions backup workflow stores up to 30 encrypted-in-transit snapshots at `/backups` in the same Firebase database. In GitHub repository **Settings → Secrets and variables → Actions**, create `BACKUP_CRON_SECRET` with the exact same value used in Render. This protects against accidental app-level deletion; also configure a separate Firebase/Google Cloud export to Cloud Storage for disaster recovery if you store anything irreplaceable.
 

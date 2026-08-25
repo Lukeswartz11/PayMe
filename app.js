@@ -15,6 +15,8 @@ const authUsername = document.getElementById('auth-username');
 const authPassword = document.getElementById('auth-password');
 const authRemember = document.getElementById('auth-remember');
 const authPasswordField = document.getElementById('auth-password-field');
+const authInviteField = document.getElementById('auth-invite-field');
+const authInviteCode = document.getElementById('auth-invite-code');
 const authError = document.getElementById('auth-error');
 const authSubmit = document.getElementById('auth-submit');
 const authModeToggle = document.getElementById('auth-mode-toggle');
@@ -43,6 +45,10 @@ const settingsMenuClose = document.getElementById('settings-menu-close');
 const accountNameForm = document.getElementById('account-name-form');
 const accountNameInput = document.getElementById('account-name-input');
 const accountNameError = document.getElementById('account-name-error');
+const accountPasswordForm = document.getElementById('account-password-form');
+const accountCurrentPassword = document.getElementById('account-current-password');
+const accountNewPassword = document.getElementById('account-new-password');
+const accountPasswordError = document.getElementById('account-password-error');
 const themeToggle = document.getElementById('theme-toggle');
 let authMode = 'sign-in';
 let currentUser = null;
@@ -1924,6 +1930,21 @@ accountNameForm.addEventListener('submit', async (event) => {
   }
 });
 
+accountPasswordForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  accountPasswordError.hidden = true;
+  try {
+    const response = await apiFetch('/api/auth/password', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword: accountCurrentPassword.value, newPassword: accountNewPassword.value }) });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'Could not update password.');
+    saveSessionToken(payload.sessionToken, false);
+    accountPasswordForm.reset();
+  } catch (error) {
+    accountPasswordError.textContent = error.message || 'Could not update password.';
+    accountPasswordError.hidden = false;
+  }
+});
+
 function setDeveloperAccess(user) {
   currentUser = user || null;
   developerSettingsRow.hidden = !currentUser?.isDeveloper;
@@ -2035,6 +2056,10 @@ function setAuthMode(nextMode) {
   authSubmit.textContent = isSignUp ? 'Create account' : 'Sign in';
   authModeToggle.textContent = isSignUp ? 'Already have an account? Sign in' : 'Need an account? Sign up';
   authPassword.autocomplete = isSignUp ? 'new-password' : 'current-password';
+  authPassword.minLength = isSignUp ? 12 : 8;
+  authInviteField.hidden = !isSignUp;
+  authInviteCode.required = isSignUp;
+  if (!isSignUp) authInviteCode.value = '';
   authError.hidden = true;
 }
 
@@ -2071,7 +2096,7 @@ authForm.addEventListener('submit', async (event) => {
     const response = await apiFetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: authUsername.value.trim(), password: authPassword.value, remember: authRemember.checked }),
+      body: JSON.stringify({ name: authUsername.value.trim(), password: authPassword.value, inviteCode: authInviteCode.value, remember: authRemember.checked }),
     });
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
