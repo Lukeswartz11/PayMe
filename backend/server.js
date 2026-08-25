@@ -713,15 +713,27 @@ app.put('/api/auth/budget-settings', requireAuth, async (req, res) => {
     const allowed = ['groceries', 'eat-out', 'rent', 'fun', 'other', 'gas', 'electric', 'internet'];
     const selected = [...new Set(categories.filter((category) => allowed.includes(category)))];
     if (!selected.length) return res.status(400).json({ error: 'Choose at least one graph category.' });
-    const data = await readData();
-    const user = data.users.find((candidate) => candidate.id === req.userId);
-    if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
-    user.budgetGraphCategories = selected;
-    await writeData(data);
-    res.json({ budgetGraphCategories: selected });
+
+    // Firebase protects the entire state with an ETag. A simultaneous ledger
+    // update can briefly invalidate it, so retry this idempotent preference save
+    // with freshly read data instead of dropping the user's selection.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const data = await readData();
+      const user = data.users.find((candidate) => candidate.id === req.userId);
+      if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
+      user.budgetGraphCategories = selected;
+      try {
+        await writeData(data);
+        return res.json({ budgetGraphCategories: selected });
+      } catch (error) {
+        if (error.message === 'Data changed on another device. Refresh and try again.' && attempt < 2) continue;
+        throw error;
+      }
+    }
   } catch (error) {
     console.error('PUT /api/auth/budget-settings error:', error);
-    res.status(500).json({ error: 'Could not save graph settings.' });
+    const conflict = error.message === 'Data changed on another device. Refresh and try again.';
+    res.status(conflict ? 409 : 500).json({ error: conflict ? error.message : 'Could not save graph settings.' });
   }
 });
 
