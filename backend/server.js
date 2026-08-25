@@ -716,8 +716,9 @@ app.put('/api/auth/budget-settings', requireAuth, async (req, res) => {
 
     // Firebase protects the entire state with an ETag. A simultaneous ledger
     // update can briefly invalidate it, so retry this idempotent preference save
-    // with freshly read data instead of dropping the user's selection.
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    // with freshly read data after a short backoff instead of dropping the user's
+    // selection while the competing write completes.
+    for (let attempt = 0; attempt < 6; attempt += 1) {
       const data = await readData();
       const user = data.users.find((candidate) => candidate.id === req.userId);
       if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
@@ -726,7 +727,10 @@ app.put('/api/auth/budget-settings', requireAuth, async (req, res) => {
         await writeData(data);
         return res.json({ budgetGraphCategories: selected });
       } catch (error) {
-        if (error.message === 'Data changed on another device. Refresh and try again.' && attempt < 2) continue;
+        if (error.message === 'Data changed on another device. Refresh and try again.' && attempt < 5) {
+          await new Promise((resolve) => setTimeout(resolve, 150 * (attempt + 1)));
+          continue;
+        }
         throw error;
       }
     }
