@@ -76,8 +76,8 @@ const DEFAULT_STATE = {
 
 function loadLocalState() {
   try {
-    const raw = localStorage.getItem(getStorageKey());
-    return raw ? JSON.parse(raw) : null;
+    localStorage.removeItem(getStorageKey());
+    return null;
   } catch (error) {
     console.warn('Could not parse local state.', error);
     return null;
@@ -86,7 +86,7 @@ function loadLocalState() {
 
 function saveLocalState() {
   try {
-    localStorage.setItem(getStorageKey(), JSON.stringify(state));
+    localStorage.removeItem(getStorageKey());
   } catch (error) {
     console.warn('Could not save local state.', error);
   }
@@ -135,7 +135,6 @@ async function loadState() {
       budgetExpenses: Array.isArray(data.budgetExpenses) ? data.budgetExpenses : DEFAULT_STATE.budgetExpenses,
       personalReceipts: Array.isArray(data.personalReceipts) ? data.personalReceipts : DEFAULT_STATE.personalReceipts,
     };
-    localStorage.setItem(getStorageKey(), JSON.stringify(loaded));
     return loaded;
   } catch (e) {
     console.warn('Could not load shared ledger state, using local fallback.', e);

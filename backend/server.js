@@ -16,11 +16,15 @@ const firebaseServiceAccountRaw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '
 const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || '';
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '';
 const reminderCronSecret = process.env.REMINDER_CRON_SECRET || '';
-const developerAccount = { name: 'Luke', password: 'Lukeswartz11' };
+const developerAccountName = process.env.DEVELOPER_ACCOUNT_NAME || 'Luke';
+const developerAccountPassword = process.env.DEVELOPER_ACCOUNT_PASSWORD || '';
+const backupCronSecret = process.env.BACKUP_CRON_SECRET || '';
+const allowedOrigins = new Set((process.env.ALLOWED_ORIGINS || 'https://lukeswartz11.github.io,https://payme-9w80.onrender.com,http://localhost:3000,http://localhost:5500').split(',').map((origin) => origin.trim()).filter(Boolean));
 const legacyStarterPeople = ['Luke', 'Andrew', 'Logan', 'Kai', 'Carson', 'conner'];
 const maxAccounts = 6;
 let firebaseAccessToken = null;
 let firebaseAccessTokenExpiresAt = 0;
+const authAttempts = new Map();
 
 function getFirebaseServiceAccount() {
   if (!firebaseDbUrl) return null;
@@ -91,17 +95,40 @@ const defaultData = {
   users: [],
 };
 
-app.use(cors({ origin: true, credentials: true, allowedHeaders: ['Content-Type', 'Authorization'] }));
+app.set('trust proxy', 1);
+app.use((req, res, next) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(self), geolocation=(), microphone=()',
+  });
+  next();
+});
+app.use(cors({ origin(origin, callback) { callback(null, !origin || allowedOrigins.has(origin)); }, credentials: false, allowedHeaders: ['Content-Type', 'Authorization'] }));
 app.use(express.json({ limit: '3mb' }));
 app.use(express.static(publicRoot));
 
+function authRateLimit(req, res, next) {
+  const now = Date.now();
+  const key = `${req.ip}:${req.path}`;
+  const entry = authAttempts.get(key) || { count: 0, resetAt: now + 15 * 60 * 1000 };
+  if (now > entry.resetAt) { entry.count = 0; entry.resetAt = now + 15 * 60 * 1000; }
+  entry.count += 1;
+  authAttempts.set(key, entry);
+  if (authAttempts.size > 10000) authAttempts.clear();
+  if (entry.count > 10) return res.status(429).json({ error: 'Too many attempts. Please wait 15 minutes and try again.' });
+  next();
+}
+
 async function readData() {
   if (firebaseDbUrl) {
-    const response = await firebaseFetch('/state.json');
+    const response = await firebaseFetch('/state.json', { headers: { 'X-Firebase-ETag': 'true' } });
     if (!response.ok) throw new Error(`Firebase read failed: ${response.status}`);
     const value = await response.text();
-    if (!value || value === 'null') return defaultData;
-    return normalizeData(JSON.parse(value));
+    const data = !value || value === 'null' ? normalizeData(defaultData) : normalizeData(JSON.parse(value));
+    Object.defineProperty(data, '__firebaseEtag', { value: response.headers.get('etag'), writable: true, enumerable: false });
+    return data;
   }
 
   try {
@@ -130,18 +157,12 @@ function normalizeData(data) {
   };
 }
 
-function parseCookies(request) {
-  return Object.fromEntries((request.headers.cookie || '').split(';').filter(Boolean).map((part) => {
-    const index = part.indexOf('=');
-    return [part.slice(0, index).trim(), decodeURIComponent(part.slice(index + 1))];
-  }));
-}
-
 function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
   return { salt, hash: crypto.scryptSync(password, salt, 64).toString('hex') };
 }
 
 function validPassword(password, user) {
+  if (!user?.salt || !user?.passwordHash) return false;
   const hash = crypto.scryptSync(password, user.salt, 64);
   return crypto.timingSafeEqual(hash, Buffer.from(user.passwordHash, 'hex'));
 }
@@ -257,17 +278,33 @@ function prepareHousehold(data) {
     data.people = [];
     changed = true;
   }
-  const developerUser = data.users.find((user) => getUserLoginName(user) === developerAccount.name.toLowerCase());
-  if (!developerUser) {
-    const { salt, hash } = hashPassword(developerAccount.password);
-    data.users.push({ id: crypto.randomUUID(), name: developerAccount.name, isDeveloper: true, salt, passwordHash: hash, createdAt: new Date().toISOString() });
+  const developerUser = data.users.find((user) => getUserLoginName(user) === developerAccountName.toLowerCase());
+  if (!developerUser && developerAccountPassword) {
+    const { salt, hash } = hashPassword(developerAccountPassword);
+    data.users.push({ id: crypto.randomUUID(), name: developerAccountName, isDeveloper: true, salt, passwordHash: hash, createdAt: new Date().toISOString() });
     changed = true;
-  } else if (!developerUser.isDeveloper) {
+  } else if (developerUser && !developerUser.isDeveloper && developerAccountPassword) {
     developerUser.isDeveloper = true;
     changed = true;
   }
-  if (!data.people.some((person) => person.toLowerCase() === developerAccount.name.toLowerCase())) {
-    data.people.push(developerAccount.name);
+  if (developerUser && !developerAccountPassword) {
+    if (developerUser.isDeveloper || developerUser.salt || developerUser.passwordHash || (developerUser.authSessions || []).length) {
+      developerUser.isDeveloper = false;
+      developerUser.salt = '';
+      developerUser.passwordHash = '';
+      developerUser.authSessions = [];
+      changed = true;
+    }
+  }
+  if (developerUser && developerAccountPassword && !validPassword(developerAccountPassword, developerUser)) {
+    const { salt, hash } = hashPassword(developerAccountPassword);
+    developerUser.salt = salt;
+    developerUser.passwordHash = hash;
+    developerUser.authSessions = [];
+    changed = true;
+  }
+  if ((developerUser || developerAccountPassword) && !data.people.some((person) => person.toLowerCase() === developerAccountName.toLowerCase())) {
+    data.people.push(developerAccountName);
     changed = true;
   }
   return changed;
@@ -294,9 +331,6 @@ function createSession(user, response, remember) {
     createdAt: new Date(now).toISOString(),
     expiresAt: remember ? null : now + 24 * 60 * 60 * 1000,
   }];
-  const cookieOptions = { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' };
-  if (remember) cookieOptions.maxAge = 10 * 365 * 24 * 60 * 60 * 1000;
-  response.cookie('payme_session', token, cookieOptions);
   return token;
 }
 
@@ -305,7 +339,7 @@ async function requireAuth(request, response, next) {
     const authorization = request.get('authorization') || '';
     const token = authorization.startsWith('Bearer ')
       ? authorization.slice(7)
-      : parseCookies(request).payme_session || '';
+      : '';
     if (!token) return response.status(401).json({ error: 'Sign in required.' });
     const tokenHash = sessionTokenHash(token);
     const data = await readPreparedData();
@@ -338,9 +372,10 @@ async function writeData(data) {
   if (firebaseDbUrl) {
     const response = await firebaseFetch('/state.json', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'if-match': data.__firebaseEtag || '*' },
       body: JSON.stringify(data),
     });
+    if (response.status === 412) throw new Error('Data changed on another device. Refresh and try again.');
     if (!response.ok) throw new Error(`Firebase write failed: ${response.status}`);
     return;
   }
@@ -348,7 +383,7 @@ async function writeData(data) {
   await fs.writeFile(dataPath, JSON.stringify(data, null, 2));
 }
 
-app.post('/api/auth/signup', async (req, res) => {
+app.post('/api/auth/signup', authRateLimit, async (req, res) => {
   try {
     const name = String(req.body?.name || '').trim();
     const password = String(req.body?.password || '');
@@ -370,7 +405,7 @@ app.post('/api/auth/signup', async (req, res) => {
   }
 });
 
-app.post('/api/auth/signin', async (req, res) => {
+app.post('/api/auth/signin', authRateLimit, async (req, res) => {
   try {
     const name = String(req.body?.name || '').trim();
     const password = String(req.body?.password || '');
@@ -604,6 +639,29 @@ app.get('/api/state', requireAuth, async (req, res) => {
   }
 });
 
+app.post('/api/backups/run', async (req, res) => {
+  if (!backupCronSecret || req.get('x-backup-secret') !== backupCronSecret) return res.status(401).json({ error: 'Unauthorized backup job.' });
+  if (!firebaseDbUrl) return res.status(503).json({ error: 'Firebase storage is required for backups.' });
+  try {
+    const data = await readData();
+    const backupId = new Date().toISOString().replace(/[:.]/g, '-');
+    const response = await firebaseFetch(`/backups/${backupId}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error(`Firebase backup failed: ${response.status}`);
+    const backupsResponse = await firebaseFetch('/backups.json');
+    const backups = backupsResponse.ok ? await backupsResponse.json() : {};
+    const expiredBackupIds = Object.keys(backups || {}).sort().slice(0, -30);
+    await Promise.all(expiredBackupIds.map((id) => firebaseFetch(`/backups/${id}.json`, { method: 'DELETE' })));
+    res.status(201).json({ ok: true, backupId });
+  } catch (error) {
+    console.error('POST /api/backups/run error:', error);
+    res.status(500).json({ error: 'Could not create backup.' });
+  }
+});
+
 app.put('/api/auth/budget-settings', requireAuth, async (req, res) => {
   try {
     const categories = Array.isArray(req.body?.categories) ? req.body.categories : [];
@@ -697,15 +755,20 @@ app.post('/api/expenses', requireAuth, async (req, res) => {
     const data = await readData();
     const user = data.users.find((candidate) => candidate.id === req.userId);
     const expense = { ...req.body };
-    if (!expense || !expense.id) {
+    if (!expense || !/^[a-z0-9]{6,64}$/i.test(String(expense.id || ''))) {
       return res.status(400).json({ error: 'Invalid expense.' });
     }
     expense.desc = String(expense.desc || '').trim();
+    if (!['gas', 'electric', 'internet', 'other'].includes(expense.category) || !Number.isFinite(Number(expense.amount)) || Number(expense.amount) <= 0 || Number(expense.amount) > 100000 || !Array.isArray(expense.splitAmong) || !expense.splitAmong.length || !/^\d{4}-\d{2}-\d{2}$/.test(String(expense.date || ''))) {
+      return res.status(400).json({ error: 'Enter a complete valid expense.' });
+    }
     if (expense.category === 'other' && (!expense.desc || expense.desc.length >= 24)) {
       return res.status(400).json({ error: 'Enter an expense description shorter than 24 characters.' });
     }
     if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
     if (!user.isDeveloper) expense.paidBy = user.name;
+    if (!data.people.includes(expense.paidBy) || expense.splitAmong.some((name) => !data.people.includes(name))) return res.status(400).json({ error: 'Choose valid household members.' });
+    expense.amount = Math.round(Number(expense.amount) * 100) / 100;
     expense.createdBy = user.id;
     expense.createdAt = new Date().toISOString();
     expense.reminders = expenseReminderRecipients(data, expense);
@@ -728,15 +791,17 @@ app.post('/api/settlements', requireAuth, async (req, res) => {
     const data = await readData();
     const user = data.users.find((candidate) => candidate.id === req.userId);
     const payment = { ...req.body };
-    if (!payment || !payment.id) {
+    if (!payment || !/^[a-z0-9]{6,64}$/i.test(String(payment.id || ''))) {
       return res.status(400).json({ error: 'Invalid payment.' });
     }
     payment.desc = String(payment.desc || '').trim();
-    if (!payment.desc || payment.desc.length >= 24) {
+    if (!payment.desc || payment.desc.length >= 24 || !Number.isFinite(Number(payment.amount)) || Number(payment.amount) <= 0 || Number(payment.amount) > 100000 || !/^\d{4}-\d{2}-\d{2}$/.test(String(payment.date || ''))) {
       return res.status(400).json({ error: 'Enter a payment description shorter than 24 characters.' });
     }
     if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
     if (!user.isDeveloper) payment.from = user.name;
+    if (!data.people.includes(payment.from) || !data.people.includes(payment.to) || payment.from === payment.to) return res.status(400).json({ error: 'Choose valid payment members.' });
+    payment.amount = Math.round(Number(payment.amount) * 100) / 100;
     payment.createdBy = user.id;
     payment.createdAt = new Date().toISOString();
     data.settlements.unshift(payment);
@@ -747,11 +812,11 @@ app.post('/api/settlements', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/people', requireAuth, async (req, res) => {
+app.post('/api/people', requireAuth, requireDeveloper, async (req, res) => {
   try {
     const data = await readData();
     const { name } = req.body;
-    if (!name) return res.status(400).json({ error: 'Invalid name.' });
+    if (!validName(String(name || '').trim())) return res.status(400).json({ error: 'Invalid name.' });
     if (!data.people.includes(name)) {
       data.people.push(name);
       await writeData(data);
@@ -796,7 +861,7 @@ app.delete('/api/settlements/:id', requireAuth, async (req, res) => {
   }
 });
 
-app.delete('/api/people/:name', requireAuth, async (req, res) => {
+app.delete('/api/people/:name', requireAuth, requireDeveloper, async (req, res) => {
   try {
     const data = await readData();
     const name = decodeURIComponent(req.params.name);

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#a7271a">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://payme-9w80.onrender.com http://localhost:3000; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'">
 <link rel="manifest" href="/manifest.webmanifest">
 <title>Pay Up — Split the Bills</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,7 +24,7 @@
         <input id="auth-username" name="name" type="text" autocomplete="given-name" maxlength="31" required>
         <label id="auth-password-field" for="auth-password">Password</label>
         <input id="auth-password" name="password" type="password" autocomplete="current-password" minlength="8" required>
-        <label class="auth-remember"><input id="auth-remember" type="checkbox" checked> Keep me signed in on this device</label>
+        <label class="auth-remember"><input id="auth-remember" type="checkbox"> Keep me signed in on this device</label>
         <p id="auth-error" class="auth-error" role="alert" hidden></p>
         <button id="auth-submit" type="submit" class="btn btn-red btn-wide">Sign in</button>
       </form>

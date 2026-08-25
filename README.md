@@ -14,6 +14,21 @@ VAPID_PRIVATE_KEY=<private VAPID key>
 REMINDER_CRON_SECRET=<long random secret>
 ```
 
+## Security setup (required before the next deploy)
+
+The backend no longer contains a developer password. In Render, add these environment variables before deploying the current version:
+
+```text
+DEVELOPER_ACCOUNT_NAME=Luke
+DEVELOPER_ACCOUNT_PASSWORD=<a new, unique password of at least 16 characters>
+ALLOWED_ORIGINS=https://lukeswartz11.github.io,https://payme-9w80.onrender.com
+BACKUP_CRON_SECRET=<a separate long random secret>
+```
+
+`DEVELOPER_ACCOUNT_PASSWORD` rotates the existing developer account to that new password and invalidates its old sessions. Never put this password in GitHub, source code, or a chat message.
+
+The daily GitHub Actions backup workflow stores up to 30 encrypted-in-transit snapshots at `/backups` in the same Firebase database. In GitHub repository **Settings → Secrets and variables → Actions**, create `BACKUP_CRON_SECRET` with the exact same value used in Render. This protects against accidental app-level deletion; also configure a separate Firebase/Google Cloud export to Cloud Storage for disaster recovery if you store anything irreplaceable.
+
 ## Persistent ledger storage
 
 Render's local filesystem is temporary, so use Firebase Realtime Database for the shared ledger. In Firebase, create a Realtime Database and generate a service-account private key in **Project settings → Service accounts**. Add these Render environment variables:
