@@ -39,6 +39,11 @@ const payNowSummary = document.getElementById('pay-now-summary');
 const payNowNote = document.getElementById('pay-now-note');
 const payWithVenmo = document.getElementById('pay-with-venmo');
 const payWithZelle = document.getElementById('pay-with-zelle');
+const billsTransferMenu = document.getElementById('bills-transfer-menu');
+const billsTransferClose = document.getElementById('bills-transfer-close');
+const billsTransferSummary = document.getElementById('bills-transfer-summary');
+const billsTransferOpenBank = document.getElementById('bills-transfer-open-bank');
+const billsTransferNotNow = document.getElementById('bills-transfer-not-now');
 const settingsButton = document.getElementById('settings-button');
 const settingsMenu = document.getElementById('settings-menu');
 const settingsMenuClose = document.getElementById('settings-menu-close');
@@ -732,6 +737,21 @@ function openBankForBillsTransfer(transferCents) {
   }
 }
 
+function showBillsAccountTransfer(transferCents) {
+  const transferAmount = money(transferCents / 100);
+  const bankName = currentUser?.bank === 'huntington' ? 'Huntington'
+    : currentUser?.bank === 'keybank' ? 'KeyBank'
+      : currentUser?.bank === 'usbank' ? 'U.S. Bank' : '';
+  billsTransferSummary.textContent = `Transfer ${transferAmount} to your bills account. This is the portion of the bill that everyone else owes.`;
+  billsTransferOpenBank.textContent = bankName ? `Open ${bankName}` : 'Choose a bank in Settings';
+  billsTransferOpenBank.disabled = !bankName;
+  billsTransferOpenBank.onclick = () => {
+    openBankForBillsTransfer(transferCents);
+    billsTransferMenu.hidden = true;
+  };
+  billsTransferMenu.hidden = false;
+}
+
 expenseForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const category = categoryInput.value;
@@ -774,7 +794,7 @@ expenseForm.addEventListener('submit', async (e) => {
     saveLocalState();
     if (category !== 'other' && currentUser?.isDeveloper && paidBy === currentUser.name) {
       const transferCents = billsAccountTransferCents(amount, splitAmong, currentUser.name);
-      openBankForBillsTransfer(transferCents);
+      showBillsAccountTransfer(transferCents);
     }
     amountInput.value = '';
     descriptionInput.value = '';
@@ -1379,6 +1399,10 @@ async function showPayNow(payment) {
 }
 
 payNowClose.addEventListener('click', () => { payNowMenu.hidden = true; });
+function closeBillsTransferMenu() { billsTransferMenu.hidden = true; }
+billsTransferClose.addEventListener('click', closeBillsTransferMenu);
+billsTransferNotNow.addEventListener('click', closeBillsTransferMenu);
+billsTransferMenu.addEventListener('click', (event) => { if (event.target === billsTransferMenu) closeBillsTransferMenu(); });
 payNowMenu.addEventListener('click', (event) => { if (event.target === payNowMenu) payNowMenu.hidden = true; });
 
 async function deletePayment(id) {

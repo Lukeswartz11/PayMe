@@ -7,6 +7,166 @@
   ],
   "expenses": [
     {
+      "id": "m69u8z7b",
+      "desc": "Gas",
+      "category": "gas",
+      "amount": 40,
+      "paidBy": "Luke",
+      "splitAmong": [
+        "Luke",
+        "Alex",
+        "Jamie",
+        "Morgan"
+      ],
+      "date": "2026-08-27",
+      "month": "2026-08",
+      "createdBy": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
+      "createdAt": "2026-08-28T03:59:57.307Z",
+      "reminders": [
+        {
+          "userId": "cc5707db-9a63-4f84-b06a-2e31d8e5341b",
+          "name": "Alex",
+          "amount": 10,
+          "dueAt": 1787975997307,
+          "reminderSentAt": null
+        },
+        {
+          "userId": "3c4a6112-255e-4636-be41-a7c9659a7df1",
+          "name": "Jamie",
+          "amount": 10,
+          "dueAt": 1787975997307,
+          "reminderSentAt": null
+        },
+        {
+          "userId": "62e9d180-52fc-4321-9578-25a7ebc20997",
+          "name": "Morgan",
+          "amount": 10,
+          "dueAt": 1787975997307,
+          "reminderSentAt": null
+        }
+      ]
+    },
+    {
+      "id": "z9qfahgd",
+      "desc": "Gas",
+      "category": "gas",
+      "amount": 40,
+      "paidBy": "Luke",
+      "splitAmong": [
+        "Luke",
+        "Alex",
+        "Jamie",
+        "Morgan"
+      ],
+      "date": "2026-08-27",
+      "month": "2026-08",
+      "createdBy": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
+      "createdAt": "2026-08-28T03:59:36.190Z",
+      "reminders": [
+        {
+          "userId": "cc5707db-9a63-4f84-b06a-2e31d8e5341b",
+          "name": "Alex",
+          "amount": 10,
+          "dueAt": 1787975976190,
+          "reminderSentAt": null
+        },
+        {
+          "userId": "3c4a6112-255e-4636-be41-a7c9659a7df1",
+          "name": "Jamie",
+          "amount": 10,
+          "dueAt": 1787975976190,
+          "reminderSentAt": null
+        },
+        {
+          "userId": "62e9d180-52fc-4321-9578-25a7ebc20997",
+          "name": "Morgan",
+          "amount": 10,
+          "dueAt": 1787975976190,
+          "reminderSentAt": null
+        }
+      ]
+    },
+    {
+      "id": "fwdrilcs",
+      "desc": "Gas",
+      "category": "gas",
+      "amount": 40,
+      "paidBy": "Luke",
+      "splitAmong": [
+        "Luke",
+        "Alex",
+        "Jamie",
+        "Morgan"
+      ],
+      "date": "2026-08-27",
+      "month": "2026-08",
+      "createdBy": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
+      "createdAt": "2026-08-28T03:59:26.215Z",
+      "reminders": [
+        {
+          "userId": "cc5707db-9a63-4f84-b06a-2e31d8e5341b",
+          "name": "Alex",
+          "amount": 10,
+          "dueAt": 1787975966215,
+          "reminderSentAt": null
+        },
+        {
+          "userId": "3c4a6112-255e-4636-be41-a7c9659a7df1",
+          "name": "Jamie",
+          "amount": 10,
+          "dueAt": 1787975966215,
+          "reminderSentAt": null
+        },
+        {
+          "userId": "62e9d180-52fc-4321-9578-25a7ebc20997",
+          "name": "Morgan",
+          "amount": 10,
+          "dueAt": 1787975966215,
+          "reminderSentAt": null
+        }
+      ]
+    },
+    {
+      "id": "1bzs1wa6",
+      "desc": "Gas",
+      "category": "gas",
+      "amount": 39.98,
+      "paidBy": "Luke",
+      "splitAmong": [
+        "Luke",
+        "Alex",
+        "Jamie",
+        "Morgan"
+      ],
+      "date": "2026-08-27",
+      "month": "2026-08",
+      "createdBy": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
+      "createdAt": "2026-08-28T03:59:15.703Z",
+      "reminders": [
+        {
+          "userId": "cc5707db-9a63-4f84-b06a-2e31d8e5341b",
+          "name": "Alex",
+          "amount": 10,
+          "dueAt": 1787975955703,
+          "reminderSentAt": null
+        },
+        {
+          "userId": "3c4a6112-255e-4636-be41-a7c9659a7df1",
+          "name": "Jamie",
+          "amount": 9.99,
+          "dueAt": 1787975955704,
+          "reminderSentAt": null
+        },
+        {
+          "userId": "62e9d180-52fc-4321-9578-25a7ebc20997",
+          "name": "Morgan",
+          "amount": 9.99,
+          "dueAt": 1787975955704,
+          "reminderSentAt": null
+        }
+      ]
+    },
+    {
       "id": "wojhgkl7",
       "desc": "Gas",
       "category": "gas",
@@ -192,7 +352,8 @@
         "gas",
         "electric",
         "internet"
-      ]
+      ],
+      "bank": "huntington"
     },
     {
       "id": "cc5707db-9a63-4f84-b06a-2e31d8e5341b",
