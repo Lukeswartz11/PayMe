@@ -7,10 +7,10 @@
   ],
   "expenses": [
     {
-      "id": "m69u8z7b",
+      "id": "08jxjewq",
       "desc": "Gas",
       "category": "gas",
-      "amount": 40,
+      "amount": 0.01,
       "paidBy": "Luke",
       "splitAmong": [
         "Luke",
@@ -18,230 +18,30 @@
         "Jamie",
         "Morgan"
       ],
-      "date": "2026-08-27",
+      "date": "2026-08-28",
       "month": "2026-08",
       "createdBy": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
-      "createdAt": "2026-08-28T03:59:57.307Z",
+      "createdAt": "2026-08-28T04:36:31.778Z",
       "reminders": [
         {
           "userId": "cc5707db-9a63-4f84-b06a-2e31d8e5341b",
           "name": "Alex",
-          "amount": 10,
-          "dueAt": 1787975997307,
+          "amount": 0,
+          "dueAt": 1787978191778,
           "reminderSentAt": null
         },
         {
           "userId": "3c4a6112-255e-4636-be41-a7c9659a7df1",
           "name": "Jamie",
-          "amount": 10,
-          "dueAt": 1787975997307,
+          "amount": 0,
+          "dueAt": 1787978191778,
           "reminderSentAt": null
         },
         {
           "userId": "62e9d180-52fc-4321-9578-25a7ebc20997",
           "name": "Morgan",
-          "amount": 10,
-          "dueAt": 1787975997307,
-          "reminderSentAt": null
-        }
-      ]
-    },
-    {
-      "id": "z9qfahgd",
-      "desc": "Gas",
-      "category": "gas",
-      "amount": 40,
-      "paidBy": "Luke",
-      "splitAmong": [
-        "Luke",
-        "Alex",
-        "Jamie",
-        "Morgan"
-      ],
-      "date": "2026-08-27",
-      "month": "2026-08",
-      "createdBy": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
-      "createdAt": "2026-08-28T03:59:36.190Z",
-      "reminders": [
-        {
-          "userId": "cc5707db-9a63-4f84-b06a-2e31d8e5341b",
-          "name": "Alex",
-          "amount": 10,
-          "dueAt": 1787975976190,
-          "reminderSentAt": null
-        },
-        {
-          "userId": "3c4a6112-255e-4636-be41-a7c9659a7df1",
-          "name": "Jamie",
-          "amount": 10,
-          "dueAt": 1787975976190,
-          "reminderSentAt": null
-        },
-        {
-          "userId": "62e9d180-52fc-4321-9578-25a7ebc20997",
-          "name": "Morgan",
-          "amount": 10,
-          "dueAt": 1787975976190,
-          "reminderSentAt": null
-        }
-      ]
-    },
-    {
-      "id": "fwdrilcs",
-      "desc": "Gas",
-      "category": "gas",
-      "amount": 40,
-      "paidBy": "Luke",
-      "splitAmong": [
-        "Luke",
-        "Alex",
-        "Jamie",
-        "Morgan"
-      ],
-      "date": "2026-08-27",
-      "month": "2026-08",
-      "createdBy": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
-      "createdAt": "2026-08-28T03:59:26.215Z",
-      "reminders": [
-        {
-          "userId": "cc5707db-9a63-4f84-b06a-2e31d8e5341b",
-          "name": "Alex",
-          "amount": 10,
-          "dueAt": 1787975966215,
-          "reminderSentAt": null
-        },
-        {
-          "userId": "3c4a6112-255e-4636-be41-a7c9659a7df1",
-          "name": "Jamie",
-          "amount": 10,
-          "dueAt": 1787975966215,
-          "reminderSentAt": null
-        },
-        {
-          "userId": "62e9d180-52fc-4321-9578-25a7ebc20997",
-          "name": "Morgan",
-          "amount": 10,
-          "dueAt": 1787975966215,
-          "reminderSentAt": null
-        }
-      ]
-    },
-    {
-      "id": "1bzs1wa6",
-      "desc": "Gas",
-      "category": "gas",
-      "amount": 39.98,
-      "paidBy": "Luke",
-      "splitAmong": [
-        "Luke",
-        "Alex",
-        "Jamie",
-        "Morgan"
-      ],
-      "date": "2026-08-27",
-      "month": "2026-08",
-      "createdBy": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
-      "createdAt": "2026-08-28T03:59:15.703Z",
-      "reminders": [
-        {
-          "userId": "cc5707db-9a63-4f84-b06a-2e31d8e5341b",
-          "name": "Alex",
-          "amount": 10,
-          "dueAt": 1787975955703,
-          "reminderSentAt": null
-        },
-        {
-          "userId": "3c4a6112-255e-4636-be41-a7c9659a7df1",
-          "name": "Jamie",
-          "amount": 9.99,
-          "dueAt": 1787975955704,
-          "reminderSentAt": null
-        },
-        {
-          "userId": "62e9d180-52fc-4321-9578-25a7ebc20997",
-          "name": "Morgan",
-          "amount": 9.99,
-          "dueAt": 1787975955704,
-          "reminderSentAt": null
-        }
-      ]
-    },
-    {
-      "id": "wojhgkl7",
-      "desc": "Gas",
-      "category": "gas",
-      "amount": 40,
-      "paidBy": "Luke",
-      "splitAmong": [
-        "Luke",
-        "Alex",
-        "Jamie",
-        "Morgan"
-      ],
-      "date": "2026-08-27",
-      "month": "2026-08",
-      "createdBy": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
-      "createdAt": "2026-08-28T03:48:39.370Z",
-      "reminders": [
-        {
-          "userId": "cc5707db-9a63-4f84-b06a-2e31d8e5341b",
-          "name": "Alex",
-          "amount": 10,
-          "dueAt": 1787975319370,
-          "reminderSentAt": null
-        },
-        {
-          "userId": "3c4a6112-255e-4636-be41-a7c9659a7df1",
-          "name": "Jamie",
-          "amount": 10,
-          "dueAt": 1787975319370,
-          "reminderSentAt": null
-        },
-        {
-          "userId": "62e9d180-52fc-4321-9578-25a7ebc20997",
-          "name": "Morgan",
-          "amount": 10,
-          "dueAt": 1787975319370,
-          "reminderSentAt": null
-        }
-      ]
-    },
-    {
-      "id": "ajuzobpz",
-      "desc": "Gas",
-      "category": "gas",
-      "amount": 60,
-      "paidBy": "Luke",
-      "splitAmong": [
-        "Luke",
-        "Alex",
-        "Jamie",
-        "Morgan"
-      ],
-      "date": "2026-08-27",
-      "month": "2026-08",
-      "createdBy": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
-      "createdAt": "2026-08-28T03:45:11.115Z",
-      "reminders": [
-        {
-          "userId": "cc5707db-9a63-4f84-b06a-2e31d8e5341b",
-          "name": "Alex",
-          "amount": 15,
-          "dueAt": 1787975111116,
-          "reminderSentAt": null
-        },
-        {
-          "userId": "3c4a6112-255e-4636-be41-a7c9659a7df1",
-          "name": "Jamie",
-          "amount": 15,
-          "dueAt": 1787975111116,
-          "reminderSentAt": null
-        },
-        {
-          "userId": "62e9d180-52fc-4321-9578-25a7ebc20997",
-          "name": "Morgan",
-          "amount": 15,
-          "dueAt": 1787975111116,
+          "amount": 0,
+          "dueAt": 1787978191778,
           "reminderSentAt": null
         }
       ]
@@ -259,21 +59,6 @@
       "month": "2026-08",
       "createdBy": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
       "createdAt": "2026-08-25T06:10:32.488Z",
-      "reminders": []
-    },
-    {
-      "id": "0ncu15fc",
-      "desc": "Gas",
-      "category": "gas",
-      "amount": 5,
-      "paidBy": "Luke",
-      "splitAmong": [
-        "Luke"
-      ],
-      "date": "2026-08-25",
-      "month": "2026-08",
-      "createdBy": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
-      "createdAt": "2026-08-25T05:12:45.365Z",
       "reminders": []
     }
   ],
@@ -341,6 +126,11 @@
           "tokenHash": "f5ee77c2f78b27564cdc1c6cb75b870d0b364847d7bc98b3528815f604f7c971",
           "createdAt": "2026-08-28T03:44:26.616Z",
           "expiresAt": 1787975066616
+        },
+        {
+          "tokenHash": "48993d860ca1d454bd46ae704811999ad06bb5a688e7ba85ca77549be2cf6a09",
+          "createdAt": "2026-08-28T04:35:16.558Z",
+          "expiresAt": 1787978116558
         }
       ],
       "budgetGraphCategories": [
