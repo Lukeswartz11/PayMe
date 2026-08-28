@@ -697,6 +697,41 @@ function updateDescriptionField() {
 categoryInput.addEventListener('change', updateDescriptionField);
 descriptionInput.addEventListener('input', () => descriptionInput.setCustomValidity(''));
 
+function billsAccountTransferCents(amount, splitAmong, accountName) {
+  const totalCents = Math.round(Number(amount) * 100);
+  const accountIndex = splitAmong.indexOf(accountName);
+  if (accountIndex < 0) return totalCents;
+  const baseShareCents = Math.floor(totalCents / splitAmong.length);
+  const remainder = totalCents - baseShareCents * splitAmong.length;
+  const accountShareCents = baseShareCents + (accountIndex < remainder ? 1 : 0);
+  return totalCents - accountShareCents;
+}
+
+function openBankForBillsTransfer(transferCents) {
+  const bank = currentUser?.bank || '';
+  const transferAmount = money(transferCents / 100);
+  const shortcutName = bank === 'huntington'
+    ? 'Open Huntington'
+    : bank === 'keybank'
+      ? 'Open KeyBank'
+      : bank === 'usbank' ? 'Open USBank' : '';
+  const bankUrl = bank === 'huntington'
+    ? 'https://www.huntington.com/mobile-login'
+    : bank === 'keybank'
+      ? 'https://www.key.com/personal/online-banking/zelle.html'
+      : bank === 'usbank'
+        ? 'https://www.usbank.com/online-mobile-banking/zelle-person-to-person-payments/zelle-support.html'
+        : '';
+
+  navigator.clipboard?.writeText(transferAmount).catch(() => {});
+  if (shortcutName && /iPhone|iPod/.test(navigator.userAgent)) {
+    const shortcutParams = new URLSearchParams({ name: shortcutName, input: 'text', text: transferAmount });
+    window.location.href = `shortcuts://run-shortcut?${shortcutParams}`;
+  } else if (bankUrl) {
+    window.open(bankUrl, '_blank', 'noopener');
+  }
+}
+
 expenseForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const category = categoryInput.value;
@@ -737,6 +772,10 @@ expenseForm.addEventListener('submit', async (e) => {
     const savedExpense = await createExpense(expense);
     state.expenses.unshift(savedExpense);
     saveLocalState();
+    if (category !== 'other' && currentUser?.isDeveloper && paidBy === currentUser.name) {
+      const transferCents = billsAccountTransferCents(amount, splitAmong, currentUser.name);
+      openBankForBillsTransfer(transferCents);
+    }
     amountInput.value = '';
     descriptionInput.value = '';
     expenseForm.reportValidity && amountInput.focus();

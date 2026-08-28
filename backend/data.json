@@ -1,8 +1,91 @@
 {
   "people": [
-    "Luke"
+    "Luke",
+    "Alex",
+    "Jamie",
+    "Morgan"
   ],
   "expenses": [
+    {
+      "id": "wojhgkl7",
+      "desc": "Gas",
+      "category": "gas",
+      "amount": 40,
+      "paidBy": "Luke",
+      "splitAmong": [
+        "Luke",
+        "Alex",
+        "Jamie",
+        "Morgan"
+      ],
+      "date": "2026-08-27",
+      "month": "2026-08",
+      "createdBy": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
+      "createdAt": "2026-08-28T03:48:39.370Z",
+      "reminders": [
+        {
+          "userId": "cc5707db-9a63-4f84-b06a-2e31d8e5341b",
+          "name": "Alex",
+          "amount": 10,
+          "dueAt": 1787975319370,
+          "reminderSentAt": null
+        },
+        {
+          "userId": "3c4a6112-255e-4636-be41-a7c9659a7df1",
+          "name": "Jamie",
+          "amount": 10,
+          "dueAt": 1787975319370,
+          "reminderSentAt": null
+        },
+        {
+          "userId": "62e9d180-52fc-4321-9578-25a7ebc20997",
+          "name": "Morgan",
+          "amount": 10,
+          "dueAt": 1787975319370,
+          "reminderSentAt": null
+        }
+      ]
+    },
+    {
+      "id": "ajuzobpz",
+      "desc": "Gas",
+      "category": "gas",
+      "amount": 60,
+      "paidBy": "Luke",
+      "splitAmong": [
+        "Luke",
+        "Alex",
+        "Jamie",
+        "Morgan"
+      ],
+      "date": "2026-08-27",
+      "month": "2026-08",
+      "createdBy": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
+      "createdAt": "2026-08-28T03:45:11.115Z",
+      "reminders": [
+        {
+          "userId": "cc5707db-9a63-4f84-b06a-2e31d8e5341b",
+          "name": "Alex",
+          "amount": 15,
+          "dueAt": 1787975111116,
+          "reminderSentAt": null
+        },
+        {
+          "userId": "3c4a6112-255e-4636-be41-a7c9659a7df1",
+          "name": "Jamie",
+          "amount": 15,
+          "dueAt": 1787975111116,
+          "reminderSentAt": null
+        },
+        {
+          "userId": "62e9d180-52fc-4321-9578-25a7ebc20997",
+          "name": "Morgan",
+          "amount": 15,
+          "dueAt": 1787975111116,
+          "reminderSentAt": null
+        }
+      ]
+    },
     {
       "id": "vrjlacqi",
       "desc": "wood",
@@ -70,34 +153,34 @@
       "id": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
       "name": "Luke",
       "isDeveloper": true,
-      "salt": "8e6b4a570e5258e5f8934b62f81d418d",
-      "passwordHash": "d225606ac86f3ce9968a825c742bf9afdd7e1a9267b7539defbb10e96f66ae6d2019aa2f6785b1cf6153a99459f182090f5022ac19188a861f7b54dfe6344a83",
+      "salt": "d47dd7a4f74e84981cbae6e5cc90d025",
+      "passwordHash": "958315353de476bcc089deda6871b9cb8eb4ef37f870e680f193d86441fab3ced36bfa4cfdeff392041edfc1aa6b41abe5f681e3bc924f76cec123095203f480",
       "createdAt": "2026-08-25T05:02:20.150Z",
       "authSessions": [
         {
-          "tokenHash": "72f69b65cb53f8e70643aa8bbd4fcecc128f90e670018fd5b53573fbc57fe6dd",
-          "createdAt": "2026-08-25T05:12:08.137Z",
-          "expiresAt": 1787721128137
+          "tokenHash": "525eff7c35b53c07548a0dcd07f1ebcfc404a563b7969bb0520b153df1d93135",
+          "createdAt": "2026-08-28T03:42:25.687Z",
+          "expiresAt": 1787974945687
         },
         {
-          "tokenHash": "683ffd48283c6980a490968bff7d596f2618373566b07997d381d9b50e9e5026",
-          "createdAt": "2026-08-25T05:21:27.097Z",
-          "expiresAt": 1787721687097
+          "tokenHash": "8cc5709e501bdf61b7ce7add93f7466bd90fe2a5a90e5934b733f5df5350b2c3",
+          "createdAt": "2026-08-28T03:42:42.070Z",
+          "expiresAt": 1787974962070
         },
         {
-          "tokenHash": "9d16a9ba0db477869bacabc75dcdaa40edfd99fff28a7544429020df6f53639c",
-          "createdAt": "2026-08-25T05:26:46.800Z",
-          "expiresAt": 1787722006800
+          "tokenHash": "e2c58f8cf3db5a230cafccfdf59d29e3001f613332ec3543d03ec7a34fd653bf",
+          "createdAt": "2026-08-28T03:43:11.695Z",
+          "expiresAt": 1787974991695
         },
         {
-          "tokenHash": "de98f5d6817948e5cdb8db0116caf80ebc75263e74af326537961834aed08eff",
-          "createdAt": "2026-08-25T05:36:52.203Z",
-          "expiresAt": 1787722612203
+          "tokenHash": "13cb3e965a52f6fd423b5bd261d94d433f01d867c3a0442bdfcdaf73f8c0ff16",
+          "createdAt": "2026-08-28T03:44:14.656Z",
+          "expiresAt": 1787975054656
         },
         {
-          "tokenHash": "2e75e8ccb77017f13c57def25d51e75e60a9859bd8e0d7ee57778e2aa22506b5",
-          "createdAt": "2026-08-25T06:05:42.362Z",
-          "expiresAt": 1787724342362
+          "tokenHash": "f5ee77c2f78b27564cdc1c6cb75b870d0b364847d7bc98b3528815f604f7c971",
+          "createdAt": "2026-08-28T03:44:26.616Z",
+          "expiresAt": 1787975066616
         }
       ],
       "budgetGraphCategories": [
@@ -109,6 +192,48 @@
         "gas",
         "electric",
         "internet"
+      ]
+    },
+    {
+      "id": "cc5707db-9a63-4f84-b06a-2e31d8e5341b",
+      "name": "Alex",
+      "salt": "764a3290be1928841a00c83602c8a9b7",
+      "passwordHash": "d3d877d8f3b4e8e3d00dceed6c39a2af6f67c69546f95a3fd25b4fa615665b842906c6a221a5b68abbf69158b2f73c99497ee993ac7f73fd6bce8d0a42c94d1c",
+      "createdAt": "2026-08-28T03:44:03.438Z",
+      "authSessions": [
+        {
+          "tokenHash": "442dfeee4204861a82f943af33a9b6f3e46b5542694dd054e11bd1dbf67a121c",
+          "createdAt": "2026-08-28T03:44:03.441Z",
+          "expiresAt": 1787975043441
+        }
+      ]
+    },
+    {
+      "id": "3c4a6112-255e-4636-be41-a7c9659a7df1",
+      "name": "Jamie",
+      "salt": "38d8073f13850759e8201bcb21f0c69a",
+      "passwordHash": "8f581b35f82349648eef90da5fea577a5acdd20a0645b3c2ff45f2ee8186da3f2509b5d1b4838834ff99d84cdf7e46814e4e80525117e5a5309b80d905c02e1b",
+      "createdAt": "2026-08-28T03:44:03.590Z",
+      "authSessions": [
+        {
+          "tokenHash": "fef135443e54a98f305cfe3fc2e6f4aa468cce45da8ea8a039ee3addcc62254d",
+          "createdAt": "2026-08-28T03:44:03.590Z",
+          "expiresAt": 1787975043590
+        }
+      ]
+    },
+    {
+      "id": "62e9d180-52fc-4321-9578-25a7ebc20997",
+      "name": "Morgan",
+      "salt": "cb5e86b110756528491c8ddfad48c5ff",
+      "passwordHash": "51d8cae44d3ea6f726123c04419996e17bbbfc74284ad7e5accd18b1d37476e50a417f3b6d2b260ab00b1c656a51fa01ef1caab940c55033016e86d7c22675ae",
+      "createdAt": "2026-08-28T03:44:03.719Z",
+      "authSessions": [
+        {
+          "tokenHash": "a3770966d29e3aaaba3cba65e85e6ef5985f8dd91c5067085a728bc26de4e6d5",
+          "createdAt": "2026-08-28T03:44:03.719Z",
+          "expiresAt": 1787975043719
+        }
       ]
     }
   ]
