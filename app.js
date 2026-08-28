@@ -730,8 +730,7 @@ function openBankForBillsTransfer(transferCents) {
 
   navigator.clipboard?.writeText(transferAmount).catch(() => {});
   if (shortcutName && /iPhone|iPod/.test(navigator.userAgent)) {
-    const shortcutParams = new URLSearchParams({ name: shortcutName, input: 'text', text: transferAmount });
-    window.location.href = `shortcuts://run-shortcut?${shortcutParams}`;
+    window.location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(shortcutName)}&input=text&text=${encodeURIComponent(transferAmount)}`;
   } else if (bankUrl) {
     window.open(bankUrl, '_blank', 'noopener');
   }
