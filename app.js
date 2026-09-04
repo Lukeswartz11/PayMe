@@ -28,6 +28,10 @@ const developerMenu = document.getElementById('developer-menu');
 const developerMenuClose = document.getElementById('developer-menu-close');
 const developerAccountList = document.getElementById('developer-account-list');
 const developerMenuError = document.getElementById('developer-menu-error');
+const developerInviteForm = document.getElementById('developer-invite-form');
+const developerInviteCode = document.getElementById('developer-invite-code');
+const developerInviteCopy = document.getElementById('developer-invite-copy');
+const developerInviteNote = document.getElementById('developer-invite-note');
 const notificationButton = document.getElementById('notification-button');
 const venmoInfoButton = document.getElementById('venmo-info-button');
 const huntingtonBankButton = document.getElementById('huntington-bank-button');
@@ -47,6 +51,7 @@ const billsTransferNotNow = document.getElementById('bills-transfer-not-now');
 const settingsButton = document.getElementById('settings-button');
 const settingsMenu = document.getElementById('settings-menu');
 const settingsMenuClose = document.getElementById('settings-menu-close');
+const exportExcelButton = document.getElementById('export-excel-button');
 const accountNameForm = document.getElementById('account-name-form');
 const accountNameInput = document.getElementById('account-name-input');
 const accountNameError = document.getElementById('account-name-error');
@@ -374,7 +379,6 @@ const utilityBreakdown = document.getElementById('utility-breakdown');
 const balancesGrid = document.getElementById('balances-grid');
 const settleList = document.getElementById('settle-list');
 const settleEmpty = document.getElementById('settle-empty');
-const balanceHero = document.getElementById('balance-hero');
 
 const paymentForm = document.getElementById('payment-form');
 const paymentFrom = document.getElementById('payment-from');
@@ -1143,7 +1147,7 @@ function renderBudget() {
     months.get(month)[expense.category] += Math.round(Number(expense.amount) * 100);
   });
   state.expenses
-    .filter((expense) => ['gas', 'electric', 'internet'].includes(expenseCategory(expense)))
+    .filter((expense) => ['gas', 'electric', 'internet', 'other'].includes(expenseCategory(expense)))
     .forEach((expense) => {
       const splitAmong = Array.isArray(expense.splitAmong) ? expense.splitAmong : [];
       const accountIndex = splitAmong.indexOf(currentUser?.name);
@@ -2035,6 +2039,356 @@ settingsButton.addEventListener('click', openSettingsMenu);
 settingsMenuClose.addEventListener('click', closeSettingsMenu);
 settingsMenu.addEventListener('click', (event) => { if (event.target === settingsMenu) closeSettingsMenu(); });
 
+// A small, dependency-free XLSX writer. XLSX files are ZIP archives containing
+// XML, and the ZIP format permits uncompressed entries, which keeps exports
+// available even when the installed app is offline.
+function xmlEscape(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[character]);
+}
+
+function excelColumnName(index) {
+  let name = '';
+  for (let number = index + 1; number; number = Math.floor((number - 1) / 26)) name = String.fromCharCode(65 + (number - 1) % 26) + name;
+  return name;
+}
+
+function sheetXml(rows, currencyColumns = []) {
+  const currency = new Set(currencyColumns);
+  const columnCount = Math.max(1, ...rows.map((row) => row.length));
+  const widths = Array.from({ length: columnCount }, (_, column) => Math.min(45, Math.max(12, ...rows.map((row) => String(row[column] ?? '').length + 2))));
+  const body = rows.map((row, rowIndex) => `<row r="${rowIndex + 1}">${row.map((value, column) => {
+    const reference = `${excelColumnName(column)}${rowIndex + 1}`;
+    if (rowIndex && currency.has(column) && Number.isFinite(Number(value))) return `<c r="${reference}" s="2"><v>${Number(value)}</v></c>`;
+    if (rowIndex && typeof value === 'number' && Number.isFinite(value)) return `<c r="${reference}"><v>${value}</v></c>`;
+    return `<c r="${reference}" t="inlineStr"${rowIndex === 0 ? ' s="1"' : ''}><is><t xml:space="preserve">${xmlEscape(value)}</t></is></c>`;
+  }).join('')}</row>`).join('');
+  const lastCell = `${excelColumnName(columnCount - 1)}${Math.max(rows.length, 1)}`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${widths.map((width, index) => `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`).join('')}</cols><sheetData>${body}</sheetData>${rows.length > 1 ? `<autoFilter ref="A1:${lastCell}"/>` : ''}</worksheet>`;
+}
+
+function crc32(bytes) {
+  let crc = -1;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+  }
+  return (crc ^ -1) >>> 0;
+}
+
+function createZip(entries) {
+  const encoder = new TextEncoder();
+  const chunks = [];
+  const directory = [];
+  let offset = 0;
+  const number = (value, size) => Array.from({ length: size }, (_, index) => value >>> (index * 8) & 255);
+  entries.forEach(([name, content]) => {
+    const nameBytes = encoder.encode(name);
+    const data = encoder.encode(content);
+    const checksum = crc32(data);
+    const local = Uint8Array.from([...number(0x04034b50, 4), 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...number(checksum, 4), ...number(data.length, 4), ...number(data.length, 4), ...number(nameBytes.length, 2), 0, 0, ...nameBytes]);
+    chunks.push(local, data);
+    directory.push(Uint8Array.from([...number(0x02014b50, 4), 20, 0, 20, 0, 0, 0, 0, 0, 0, 0, 0, ...number(checksum, 4), ...number(data.length, 4), ...number(data.length, 4), ...number(nameBytes.length, 2), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...number(offset, 4), ...nameBytes]));
+    offset += local.length + data.length;
+  });
+  const directorySize = directory.reduce((sum, entry) => sum + entry.length, 0);
+  const end = Uint8Array.from([...number(0x06054b50, 4), 0, 0, 0, 0, ...number(entries.length, 2), ...number(entries.length, 2), ...number(directorySize, 4), ...number(offset, 4), 0, 0]);
+  return new Blob([...chunks, ...directory, end], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+
+function exportWorkbookSheets() {
+  const exportedAt = new Date().toISOString();
+  const transactionRows = [['Type', 'Date', 'Month', 'Category', 'Description', 'Amount', 'Paid / From', 'To', 'Split Among', 'Created At', 'Record ID']];
+  state.expenses.forEach((expense) => transactionRows.push(['Household expense', expense.date || '', expense.month || String(expense.date || '').slice(0, 7), categoryLabel(expenseCategory(expense)), expense.desc || categoryLabel(expenseCategory(expense)), Number(expense.amount) || 0, expense.paidBy || '', '', (expense.splitAmong || []).join(', '), expense.createdAt || '', expense.id || '']));
+  state.settlements.forEach((payment) => transactionRows.push(['Payment', payment.date || '', String(payment.date || '').slice(0, 7), 'Payment', payment.desc || '', Number(payment.amount) || 0, payment.from || '', payment.to || '', '', payment.createdAt || '', payment.id || '']));
+  state.budgetExpenses.forEach((expense) => transactionRows.push(['Personal expense', expense.date || '', String(expense.date || '').slice(0, 7), graphCategoryLabel(expense.category), expense.desc || '', Number(expense.amount) || 0, currentUser?.name || '', '', '', expense.createdAt || '', expense.id || '']));
+  transactionRows.splice(1, transactionRows.length - 1, ...transactionRows.slice(1).sort((a, b) => String(b[1]).localeCompare(String(a[1]))));
+
+  const receiptRows = [['Receipt Type', 'Date', 'Month', 'Category', 'Description / Store', 'Amount', 'Paid By', 'Split Among', 'Has Photo', 'Record ID']];
+  state.expenses.forEach((expense) => receiptRows.push(['Household log', expense.date || '', expense.month || String(expense.date || '').slice(0, 7), categoryLabel(expenseCategory(expense)), expense.desc || categoryLabel(expenseCategory(expense)), Number(expense.amount) || 0, expense.paidBy || '', (expense.splitAmong || []).join(', '), 'No', expense.id || '']));
+  state.budgetExpenses.forEach((expense) => receiptRows.push(['Personal log', expense.date || '', String(expense.date || '').slice(0, 7), graphCategoryLabel(expense.category), expense.desc || '', Number(expense.amount) || 0, currentUser?.name || '', '', state.personalReceipts.some((receipt) => receipt.store === expense.desc) ? 'Yes' : 'No', expense.id || '']));
+  state.personalReceipts.forEach((receipt) => receiptRows.push(['Receipt photo', String(receipt.createdAt || '').slice(0, 10), String(receipt.createdAt || '').slice(0, 7), '', receipt.store || '', '', currentUser?.name || '', '', 'Yes', receipt.id || '']));
+
+  const householdMonths = new Map();
+  state.expenses.filter((expense) => ['gas', 'electric', 'internet'].includes(expenseCategory(expense))).forEach((expense) => {
+    const month = expense.month || String(expense.date || '').slice(0, 7) || 'Unknown';
+    if (!householdMonths.has(month)) householdMonths.set(month, { gas: 0, electric: 0, internet: 0 });
+    householdMonths.get(month)[expenseCategory(expense)] += Number(expense.amount) || 0;
+  });
+  const personalMonths = new Map();
+  const ensurePersonalMonth = (month) => { if (!personalMonths.has(month)) personalMonths.set(month, Object.fromEntries(GRAPH_CATEGORIES.map((category) => [category, 0]))); return personalMonths.get(month); };
+  state.budgetExpenses.forEach((expense) => { ensurePersonalMonth(String(expense.date || '').slice(0, 7) || 'Unknown')[expense.category] += Number(expense.amount) || 0; });
+  state.expenses.filter((expense) => ['gas', 'electric', 'internet', 'other'].includes(expenseCategory(expense))).forEach((expense) => {
+    const people = Array.isArray(expense.splitAmong) ? expense.splitAmong : [];
+    const index = people.indexOf(currentUser?.name);
+    if (index < 0 || !people.length) return;
+    const cents = Math.round((Number(expense.amount) || 0) * 100);
+    const share = Math.floor(cents / people.length) + (index < cents % people.length ? 1 : 0);
+    ensurePersonalMonth(expense.month || String(expense.date || '').slice(0, 7) || 'Unknown')[expenseCategory(expense)] += share / 100;
+  });
+  const graphRows = [['Graph', 'Month', 'Category', 'Amount', 'Included In Current Personal Total']];
+  [...householdMonths.entries()].sort().forEach(([month, totals]) => ['gas', 'electric', 'internet'].forEach((category) => graphRows.push(['Household utility totals', month, categoryLabel(category), totals[category], 'Yes'])));
+  [...personalMonths.entries()].sort().forEach(([month, totals]) => GRAPH_CATEGORIES.forEach((category) => graphRows.push(['Personal spending', month, graphCategoryLabel(category), totals[category], selectedBudgetGraphCategories().includes(category) ? 'Yes' : 'No'])));
+
+  const balances = computeBalances();
+  const balanceRows = [['Person', 'Current Balance', 'Meaning'], ...state.people.map((person) => [person, balances[person] || 0, (balances[person] || 0) > 0 ? 'Is owed money' : (balances[person] || 0) < 0 ? 'Owes money' : 'Settled'])];
+  const infoRows = [['Field', 'Value'], ['Exported at', exportedAt], ['Exported by', currentUser?.name || ''], ['Household members', state.people.join(', ')], ['Household expenses', state.expenses.length], ['Payments', state.settlements.length], ['Personal expenses', state.budgetExpenses.length], ['Receipt photos (metadata only)', state.personalReceipts.length], ['Personal graph categories', selectedBudgetGraphCategories().map(graphCategoryLabel).join(', ')], ['Privacy note', 'Receipt images, passwords, session tokens, Venmo details, and banking settings are not included.']];
+  return [
+    ['All Transactions', transactionRows, [5]],
+    ['Receipts Log', receiptRows, [5]],
+    ['Graph Data', graphRows, [3]],
+    ['Balances', balanceRows, [1]],
+    ['Export Info', infoRows, []],
+  ];
+}
+
+function styleExcelSheet(worksheet, frozenRows = 1) {
+  worksheet.views = [{ state: 'frozen', ySplit: frozenRows, activeCell: `A${frozenRows + 1}` }];
+  worksheet.properties.defaultRowHeight = 20;
+  worksheet.eachRow((row) => { row.alignment = { vertical: 'middle' }; });
+  worksheet.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.25, right: 0.25, top: 0.6, bottom: 0.6, header: 0.2, footer: 0.2 } };
+  worksheet.headerFooter.oddFooter = '&LPayMe&C&P of &N&R&D';
+  worksheet.properties.pageSetUpPr = { fitToPage: true };
+}
+
+function addExcelTitle(worksheet, title, subtitle, lastColumn, tabColor = 'FFBA0C2F') {
+  worksheet.mergeCells(`A1:${lastColumn}1`);
+  worksheet.mergeCells(`A2:${lastColumn}2`);
+  const titleCell = worksheet.getCell('A1');
+  titleCell.value = title;
+  titleCell.font = { bold: true, size: 22, color: { argb: 'FFFFFFFF' } };
+  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBA0C2F' } };
+  titleCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  worksheet.getRow(1).height = 34;
+  const subtitleCell = worksheet.getCell('A2');
+  subtitleCell.value = subtitle;
+  subtitleCell.font = { italic: true, size: 10, color: { argb: 'FF5D6268' } };
+  subtitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F2F3' } };
+  subtitleCell.alignment = { vertical: 'middle', indent: 1 };
+  worksheet.getRow(2).height = 24;
+  worksheet.getRow(3).height = 8;
+  worksheet.properties.tabColor = { argb: tabColor };
+}
+
+function graphTablesFromRows(graphRows) {
+  const graphs = new Map();
+  graphRows.slice(1).forEach(([graph, month, category, amount]) => {
+    if (!graphs.has(graph)) graphs.set(graph, { categories: [], months: new Map() });
+    const current = graphs.get(graph);
+    if (!current.categories.includes(category)) current.categories.push(category);
+    if (!current.months.has(month)) current.months.set(month, {});
+    current.months.get(month)[category] = Number(amount) || 0;
+  });
+  return [...graphs.entries()].map(([name, data]) => ({
+    name,
+    rows: [['Month', ...data.categories], ...[...data.months.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([month, totals]) => [month, ...data.categories.map((category) => totals[category] || 0)])],
+  }));
+}
+
+function graphImage(title, rows) {
+  const width = 960;
+  const height = 420;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, width, height);
+  context.fillStyle = '#242424';
+  context.font = '700 24px Arial';
+  context.fillText(title, 36, 38);
+  const categories = rows[0].slice(1);
+  const data = rows.slice(1);
+  const colors = ['#ba0c2f', '#666666', '#f4a261', '#2a9d8f', '#457b9d', '#8f5aa8', '#d4a017', '#4f772d'];
+  const totals = data.map((row) => row.slice(1).reduce((sum, value) => sum + Number(value || 0), 0));
+  const maximum = Math.max(...totals, 1);
+  const plot = { left: 70, top: 78, right: 930, bottom: 340 };
+  context.strokeStyle = '#d6d2ca';
+  context.fillStyle = '#666666';
+  context.font = '12px Arial';
+  for (let tick = 0; tick <= 4; tick += 1) {
+    const y = plot.bottom - (plot.bottom - plot.top) * tick / 4;
+    context.beginPath(); context.moveTo(plot.left, y); context.lineTo(plot.right, y); context.stroke();
+    context.fillText(`$${(maximum * tick / 4).toFixed(0)}`, 18, y + 4);
+  }
+  const slot = (plot.right - plot.left) / Math.max(data.length, 1);
+  data.forEach((row, index) => {
+    const barWidth = Math.min(70, slot * 0.58);
+    let bottom = plot.bottom;
+    row.slice(1).forEach((value, categoryIndex) => {
+      const barHeight = (Number(value || 0) / maximum) * (plot.bottom - plot.top);
+      context.fillStyle = colors[categoryIndex % colors.length];
+      context.fillRect(plot.left + index * slot + (slot - barWidth) / 2, bottom - barHeight, barWidth, barHeight);
+      bottom -= barHeight;
+    });
+    context.fillStyle = '#242424'; context.textAlign = 'center'; context.font = '700 12px Arial';
+    context.fillText(`$${totals[index].toFixed(2)}`, plot.left + index * slot + slot / 2, Math.max(plot.top + 12, bottom - 7));
+    context.save();
+    context.translate(plot.left + index * slot + slot / 2, plot.bottom + 14);
+    context.rotate(-Math.PI / 5);
+    context.fillStyle = '#444444'; context.textAlign = 'right'; context.font = '12px Arial'; context.fillText(row[0], 0, 0);
+    context.restore();
+  });
+  let legendX = 36;
+  categories.forEach((category, index) => {
+    context.fillStyle = colors[index % colors.length]; context.fillRect(legendX, 390, 13, 13);
+    context.fillStyle = '#333333'; context.font = '12px Arial'; context.fillText(category, legendX + 18, 401);
+    legendX += context.measureText(category).width + 48;
+  });
+  return canvas.toDataURL('image/png');
+}
+
+async function receiptImageForExcel(dataUrl) {
+  const image = new Image();
+  await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; image.src = dataUrl; });
+  const isSupported = /^data:image\/(png|jpeg);base64,/i.test(dataUrl);
+  if (isSupported) return { base64: dataUrl, extension: dataUrl.startsWith('data:image/png') ? 'png' : 'jpeg', width: image.naturalWidth, height: image.naturalHeight };
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+  canvas.getContext('2d').drawImage(image, 0, 0);
+  return { base64: canvas.toDataURL('image/png'), extension: 'png', width: image.naturalWidth, height: image.naturalHeight };
+}
+
+function excelMonthLabel(month) {
+  const date = new Date(`${month}-01T00:00:00`);
+  return Number.isNaN(date.getTime()) ? String(month || 'Unknown') : date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+function personalShareAmount(expense) {
+  const people = Array.isArray(expense.splitAmong) ? expense.splitAmong : [];
+  const index = people.indexOf(currentUser?.name);
+  if (index < 0 || !people.length) return null;
+  const cents = Math.round((Number(expense.amount) || 0) * 100);
+  return (Math.floor(cents / people.length) + (index < cents % people.length ? 1 : 0)) / 100;
+}
+
+async function exportToExcel() {
+  const sourceSheets = exportWorkbookSheets();
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'PayMe';
+  workbook.created = new Date();
+
+  const logRows = [['Type', 'Date', 'Month', 'Category', 'Description', 'My Amount', 'Paid To / Paid By']];
+  state.budgetExpenses.forEach((expense) => logRows.push(['Personal expense', expense.date || '', excelMonthLabel(String(expense.date || '').slice(0, 7)), graphCategoryLabel(expense.category), expense.desc || '', Number(expense.amount) || 0, '']));
+  state.expenses.forEach((expense) => {
+    const share = personalShareAmount(expense);
+    if (share === null) return;
+    logRows.push(['Shared expense share', expense.date || '', excelMonthLabel(expense.month || String(expense.date || '').slice(0, 7)), graphCategoryLabel(expenseCategory(expense)), expense.desc || graphCategoryLabel(expenseCategory(expense)), share, expense.paidBy || '']);
+  });
+  state.settlements.filter((payment) => payment.from === currentUser?.name).forEach((payment) => logRows.push(['Payment sent', payment.date || '', excelMonthLabel(String(payment.date || '').slice(0, 7)), 'Payment', payment.desc || '', Number(payment.amount) || 0, payment.to || '']));
+  logRows.splice(1, logRows.length - 1, ...logRows.slice(1).sort((a, b) => String(b[1]).localeCompare(String(a[1]))));
+  const logSheet = workbook.addWorksheet('Transaction Log');
+  addExcelTitle(logSheet, 'MY TRANSACTION LOG', `${currentUser?.name || 'My'} personal spending · exported ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`, 'G');
+  logSheet.addTable({ name: 'PayMeTransactionLog', ref: 'A4', headerRow: true, style: { theme: 'TableStyleMedium2', showRowStripes: true }, columns: logRows[0].map((name) => ({ name })), rows: logRows.slice(1) });
+  [22, 13, 20, 18, 30, 14, 22].forEach((width, index) => { logSheet.getColumn(index + 1).width = width; });
+  logSheet.getColumn(6).numFmt = '$#,##0.00;[Red]-$#,##0.00';
+  styleExcelSheet(logSheet, 4);
+
+  const graphSource = sourceSheets.find(([name]) => name === 'Graph Data')[1];
+  const visibleGraphSource = [graphSource[0], ...graphSource.slice(1).filter((row) => row[0] !== 'Personal spending' || row[4] === 'Yes')];
+  const graphTables = graphTablesFromRows(visibleGraphSource).map((graph) => ({ ...graph, rows: [graph.rows[0], ...graph.rows.slice(1).map((row) => [excelMonthLabel(row[0]), ...row.slice(1)])] }));
+  const personalGraph = graphTables.find((graph) => graph.name === 'Personal spending');
+  const graphSheet = workbook.addWorksheet('Graphs');
+  addExcelTitle(graphSheet, 'MY SPENDING GRAPHS', 'Monthly totals use the same selected categories as the Personal Budget graph in PayMe.', 'J', 'FF4D5968');
+  graphSheet.getColumn(1).width = 16;
+  for (let column = 2; column <= 10; column += 1) graphSheet.getColumn(column).width = 14;
+  if (personalGraph) {
+    graphSheet.addTable({ name: 'PayMePersonalGraph', ref: 'A4', headerRow: true, style: { theme: 'TableStyleMedium2', showRowStripes: true }, columns: personalGraph.rows[0].map((name) => ({ name })), rows: personalGraph.rows.slice(1) });
+    for (let column = 2; column <= personalGraph.rows[0].length; column += 1) graphSheet.getColumn(column).numFmt = '$#,##0.00';
+    const chartTop = 5 + personalGraph.rows.length;
+    const imageId = workbook.addImage({ base64: graphImage('My monthly spending', personalGraph.rows), extension: 'png' });
+    graphSheet.addImage(imageId, { tl: { col: 0, row: chartTop - 1 }, ext: { width: 960, height: 420 } });
+  } else graphSheet.getCell('A4').value = 'No personal spending has been recorded yet.';
+  styleExcelSheet(graphSheet, 4);
+
+  const utilityRows = [['Date', 'Month', 'Utility', 'Description', 'Bill Amount', 'Paid By', 'Split Among']];
+  state.expenses.filter((expense) => ['gas', 'electric', 'internet'].includes(expenseCategory(expense))).sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).forEach((expense) => utilityRows.push([expense.date || '', excelMonthLabel(expense.month || String(expense.date || '').slice(0, 7)), categoryLabel(expenseCategory(expense)), expense.desc || categoryLabel(expenseCategory(expense)), Number(expense.amount) || 0, expense.paidBy || '', (expense.splitAmong || []).join(', ')]));
+  const utilitySheet = workbook.addWorksheet('Utilities');
+  addExcelTitle(utilitySheet, 'HOUSEHOLD UTILITIES', 'Gas, electric, and internet bills with monthly totals.', 'G', 'FF4D5968');
+  utilitySheet.addTable({ name: 'PayMeUtilities', ref: 'A4', headerRow: true, style: { theme: 'TableStyleMedium4', showRowStripes: true }, columns: utilityRows[0].map((name) => ({ name })), rows: utilityRows.slice(1) });
+  [13, 20, 15, 24, 14, 18, 34].forEach((width, index) => { utilitySheet.getColumn(index + 1).width = width; });
+  utilitySheet.getColumn(5).numFmt = '$#,##0.00;[Red]-$#,##0.00';
+  styleExcelSheet(utilitySheet, 4);
+  const utilityGraph = graphTables.find((graph) => graph.name === 'Household utility totals');
+  if (utilityGraph) {
+    const utilityChartTop = utilityRows.length + 6;
+    utilitySheet.getCell(utilityChartTop, 1).value = 'Monthly utility totals';
+    utilitySheet.getCell(utilityChartTop, 1).font = { bold: true, size: 18, color: { argb: 'FFBA0C2F' } };
+    const imageId = workbook.addImage({ base64: graphImage('Monthly utility totals', utilityGraph.rows), extension: 'png' });
+    utilitySheet.addImage(imageId, { tl: { col: 0, row: utilityChartTop + 1 }, ext: { width: 960, height: 420 } });
+  }
+
+  const receiptSheet = workbook.addWorksheet('Receipt Images');
+  receiptSheet.columns = Array.from({ length: 15 }, () => ({ width: 11 }));
+  addExcelTitle(receiptSheet, 'SAVED RECEIPTS', 'Original receipt images from your personal expense log.', 'O', 'FFD69E2E');
+  if (!state.personalReceipts.length) receiptSheet.getCell('A4').value = 'No receipt images have been saved yet.';
+  for (let index = 0; index < state.personalReceipts.length; index += 1) {
+    const receipt = state.personalReceipts[index];
+    const column = index % 2 ? 9 : 1;
+    const row = 4 + Math.floor(index / 2) * 34;
+    receiptSheet.getCell(row, column).value = receipt.store || 'Receipt';
+    receiptSheet.mergeCells(row, column, row, column + 5);
+    receiptSheet.getCell(row, column).font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
+    receiptSheet.getCell(row, column).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4D5968' } };
+    receiptSheet.getCell(row, column).alignment = { vertical: 'middle', indent: 1 };
+    receiptSheet.getRow(row).height = 26;
+    receiptSheet.mergeCells(row + 1, column, row + 1, column + 5);
+    receiptSheet.getCell(row + 1, column).value = String(receipt.createdAt || '').slice(0, 10);
+    receiptSheet.getCell(row + 1, column).font = { italic: true, color: { argb: 'FF5D6268' } };
+    receiptSheet.getCell(row + 1, column).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F2F3' } };
+    receiptSheet.getCell(row + 1, column).alignment = { vertical: 'middle', indent: 1 };
+    try {
+      const image = await receiptImageForExcel(receipt.image);
+      const maximumWidth = 470;
+      const maximumHeight = 570;
+      const scale = Math.min(maximumWidth / image.width, maximumHeight / image.height, 1);
+      const imageId = workbook.addImage({ base64: image.base64, extension: image.extension });
+      receiptSheet.addImage(imageId, { tl: { col: column - 1, row: row + 1 }, ext: { width: image.width * scale, height: image.height * scale } });
+    } catch (error) {
+      receiptSheet.getCell(row + 3, column).value = 'This receipt image could not be included.';
+    }
+  }
+  styleExcelSheet(receiptSheet, 3);
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `PayMe-export-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+let excelLibraryPromise = null;
+function ensureExcelLibrary() {
+  if (window.ExcelJS) return Promise.resolve();
+  if (excelLibraryPromise) return excelLibraryPromise;
+  excelLibraryPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = `${API_BASE}/exceljs.min.js`;
+    script.onload = () => window.ExcelJS ? resolve() : reject(new Error('Excel library did not initialize.'));
+    script.onerror = () => reject(new Error('Could not load the Excel export library.'));
+    document.head.appendChild(script);
+  });
+  return excelLibraryPromise;
+}
+
+exportExcelButton.addEventListener('click', async () => {
+  exportExcelButton.disabled = true;
+  exportExcelButton.textContent = 'Preparing…';
+  try {
+    await ensureExcelLibrary();
+    await exportToExcel();
+  } catch (error) {
+    console.error('Excel export failed.', error);
+    alert(error.message || 'Could not create the Excel export. Please try again.');
+  } finally {
+    exportExcelButton.disabled = false;
+    exportExcelButton.textContent = 'Export to Excel';
+  }
+});
+
 accountNameForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const name = accountNameInput.value.trim();
@@ -2083,6 +2437,43 @@ function showDeveloperError(message = '') {
   developerMenuError.textContent = message;
   developerMenuError.hidden = !message;
 }
+
+async function loadDeveloperInviteCode() {
+  const response = await apiFetch('/api/developer/invite-code');
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error || 'Could not load the household invite code.');
+  developerInviteCode.value = payload.inviteCode || '';
+  developerInviteCode.disabled = payload.managedByEnvironment;
+  developerInviteForm.querySelector('button[type="submit"]').disabled = payload.managedByEnvironment;
+  developerInviteCopy.disabled = !payload.inviteCode;
+  developerInviteNote.textContent = payload.managedByEnvironment
+    ? 'This code is currently managed by the server environment settings.'
+    : payload.inviteCode ? 'The code is active. You can copy it or replace it here.' : 'No invite code exists yet. Create one to allow new roommate accounts.';
+}
+
+developerInviteForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  showDeveloperError();
+  try {
+    const response = await apiFetch('/api/developer/invite-code', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ inviteCode: developerInviteCode.value }) });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'Could not save the household invite code.');
+    await loadDeveloperInviteCode();
+    developerInviteNote.textContent = 'Invite code saved and ready to share.';
+  } catch (error) { showDeveloperError(error.message || 'Could not save the household invite code.'); }
+});
+
+developerInviteCopy.addEventListener('click', async () => {
+  if (!developerInviteCode.value) return;
+  try {
+    await navigator.clipboard.writeText(developerInviteCode.value);
+    developerInviteNote.textContent = 'Invite code copied.';
+  } catch (error) {
+    developerInviteCode.select();
+    document.execCommand('copy');
+    developerInviteNote.textContent = 'Invite code copied.';
+  }
+});
 
 function renderDeveloperAccounts(accounts) {
   developerAccountList.innerHTML = '';
@@ -2155,7 +2546,10 @@ async function openDeveloperMenu() {
   developerMenu.hidden = false;
   developerAccountList.textContent = 'Loading accounts…';
   try {
-    const response = await apiFetch('/api/developer/accounts');
+    const [response] = await Promise.all([
+      apiFetch('/api/developer/accounts'),
+      loadDeveloperInviteCode(),
+    ]);
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || 'Could not load accounts.');
     renderDeveloperAccounts(payload.accounts || []);
@@ -2270,7 +2664,6 @@ function renderAll() {
   renderExpenses();
   const balance = computeBalances();
   const creditScores = computeCreditScores();
-  renderBalanceHero(balance);
   renderBalances(balance, creditScores);
   renderPaymentOptions();
   renderSettlements(computeSettlements(balance));

@@ -7,6 +7,166 @@
   ],
   "expenses": [
     {
+      "id": "u4w0afmu",
+      "desc": "beer",
+      "category": "other",
+      "amount": 20,
+      "paidBy": "Luke",
+      "splitAmong": [
+        "Luke",
+        "Alex",
+        "Jamie",
+        "Morgan"
+      ],
+      "date": "2026-09-04",
+      "month": "2026-09",
+      "createdBy": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
+      "createdAt": "2026-09-04T05:10:35.245Z",
+      "reminders": [
+        {
+          "userId": "cc5707db-9a63-4f84-b06a-2e31d8e5341b",
+          "name": "Alex",
+          "amount": 5,
+          "dueAt": 1788585035245,
+          "reminderSentAt": null
+        },
+        {
+          "userId": "3c4a6112-255e-4636-be41-a7c9659a7df1",
+          "name": "Jamie",
+          "amount": 5,
+          "dueAt": 1788585035245,
+          "reminderSentAt": null
+        },
+        {
+          "userId": "62e9d180-52fc-4321-9578-25a7ebc20997",
+          "name": "Morgan",
+          "amount": 5,
+          "dueAt": 1788585035245,
+          "reminderSentAt": null
+        }
+      ]
+    },
+    {
+      "id": "dbjs5umj",
+      "desc": "Internet",
+      "category": "internet",
+      "amount": 315.6,
+      "paidBy": "Luke",
+      "splitAmong": [
+        "Luke",
+        "Alex",
+        "Jamie",
+        "Morgan"
+      ],
+      "date": "2026-09-04",
+      "month": "2026-09",
+      "createdBy": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
+      "createdAt": "2026-09-04T05:10:19.237Z",
+      "reminders": [
+        {
+          "userId": "cc5707db-9a63-4f84-b06a-2e31d8e5341b",
+          "name": "Alex",
+          "amount": 78.9,
+          "dueAt": 1788585019237,
+          "reminderSentAt": null
+        },
+        {
+          "userId": "3c4a6112-255e-4636-be41-a7c9659a7df1",
+          "name": "Jamie",
+          "amount": 78.9,
+          "dueAt": 1788585019237,
+          "reminderSentAt": null
+        },
+        {
+          "userId": "62e9d180-52fc-4321-9578-25a7ebc20997",
+          "name": "Morgan",
+          "amount": 78.9,
+          "dueAt": 1788585019237,
+          "reminderSentAt": null
+        }
+      ]
+    },
+    {
+      "id": "vumoy11l",
+      "desc": "Electric",
+      "category": "electric",
+      "amount": 200,
+      "paidBy": "Luke",
+      "splitAmong": [
+        "Luke",
+        "Alex",
+        "Jamie",
+        "Morgan"
+      ],
+      "date": "2026-09-04",
+      "month": "2026-09",
+      "createdBy": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
+      "createdAt": "2026-09-04T05:10:07.953Z",
+      "reminders": [
+        {
+          "userId": "cc5707db-9a63-4f84-b06a-2e31d8e5341b",
+          "name": "Alex",
+          "amount": 50,
+          "dueAt": 1788585007953,
+          "reminderSentAt": null
+        },
+        {
+          "userId": "3c4a6112-255e-4636-be41-a7c9659a7df1",
+          "name": "Jamie",
+          "amount": 50,
+          "dueAt": 1788585007953,
+          "reminderSentAt": null
+        },
+        {
+          "userId": "62e9d180-52fc-4321-9578-25a7ebc20997",
+          "name": "Morgan",
+          "amount": 50,
+          "dueAt": 1788585007953,
+          "reminderSentAt": null
+        }
+      ]
+    },
+    {
+      "id": "j89rvcus",
+      "desc": "Gas",
+      "category": "gas",
+      "amount": 100,
+      "paidBy": "Luke",
+      "splitAmong": [
+        "Luke",
+        "Alex",
+        "Jamie",
+        "Morgan"
+      ],
+      "date": "2026-09-04",
+      "month": "2026-09",
+      "createdBy": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
+      "createdAt": "2026-09-04T05:09:53.035Z",
+      "reminders": [
+        {
+          "userId": "cc5707db-9a63-4f84-b06a-2e31d8e5341b",
+          "name": "Alex",
+          "amount": 25,
+          "dueAt": 1788584993036,
+          "reminderSentAt": null
+        },
+        {
+          "userId": "3c4a6112-255e-4636-be41-a7c9659a7df1",
+          "name": "Jamie",
+          "amount": 25,
+          "dueAt": 1788584993036,
+          "reminderSentAt": null
+        },
+        {
+          "userId": "62e9d180-52fc-4321-9578-25a7ebc20997",
+          "name": "Morgan",
+          "amount": 25,
+          "dueAt": 1788584993036,
+          "reminderSentAt": null
+        }
+      ]
+    },
+    {
       "id": "08jxjewq",
       "desc": "Gas",
       "category": "gas",
@@ -65,6 +225,51 @@
   "settlements": [],
   "budgetExpenses": [
     {
+      "id": "69wa8kwr",
+      "ownerId": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
+      "category": "other",
+      "desc": "fun",
+      "amount": 20,
+      "date": "2026-09-04",
+      "createdAt": "2026-09-04T05:09:41.045Z"
+    },
+    {
+      "id": "h35yb4h3",
+      "ownerId": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
+      "category": "eat-out",
+      "desc": "tacobell",
+      "amount": 20,
+      "date": "2026-09-04",
+      "createdAt": "2026-09-04T05:09:34.294Z"
+    },
+    {
+      "id": "4agpvhhs",
+      "ownerId": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
+      "category": "rent",
+      "desc": "Rent",
+      "amount": 550,
+      "date": "2026-09-04",
+      "createdAt": "2026-09-04T05:09:26.994Z"
+    },
+    {
+      "id": "3v6o965d",
+      "ownerId": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
+      "category": "groceries",
+      "desc": "Groceries",
+      "amount": 20,
+      "date": "2026-09-04",
+      "createdAt": "2026-09-04T05:09:21.044Z"
+    },
+    {
+      "id": "2q4cdhz5",
+      "ownerId": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
+      "category": "groceries",
+      "desc": "Groceries",
+      "amount": 15,
+      "date": "2026-09-04",
+      "createdAt": "2026-09-04T04:32:51.169Z"
+    },
+    {
       "id": "tujw6reu",
       "ownerId": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
       "category": "groceries",
@@ -98,39 +303,19 @@
       "id": "f3d2ceb5-8d3f-41ea-a604-d7efc46a0df2",
       "name": "Luke",
       "isDeveloper": true,
-      "salt": "d47dd7a4f74e84981cbae6e5cc90d025",
-      "passwordHash": "958315353de476bcc089deda6871b9cb8eb4ef37f870e680f193d86441fab3ced36bfa4cfdeff392041edfc1aa6b41abe5f681e3bc924f76cec123095203f480",
+      "salt": "541d84f86e229e713a8c03a2af4c2ba8",
+      "passwordHash": "ea9b3ab4b85166a56fa8c0b86a23c9c13d01a08e13b515f4c37d9eb54524d40a2cc1e45b3c79857d79fd21298d0658a5e25e5da9a3e4f86bc64cfe8dfa8960fd",
       "createdAt": "2026-08-25T05:02:20.150Z",
       "authSessions": [
         {
-          "tokenHash": "525eff7c35b53c07548a0dcd07f1ebcfc404a563b7969bb0520b153df1d93135",
-          "createdAt": "2026-08-28T03:42:25.687Z",
-          "expiresAt": 1787974945687
+          "tokenHash": "5e4874126098e126ddfd1135698da7bb182bbdfa74e06385f72614158c9dcb65",
+          "createdAt": "2026-09-04T04:08:49.333Z",
+          "expiresAt": 1788581329333
         },
         {
-          "tokenHash": "8cc5709e501bdf61b7ce7add93f7466bd90fe2a5a90e5934b733f5df5350b2c3",
-          "createdAt": "2026-08-28T03:42:42.070Z",
-          "expiresAt": 1787974962070
-        },
-        {
-          "tokenHash": "e2c58f8cf3db5a230cafccfdf59d29e3001f613332ec3543d03ec7a34fd653bf",
-          "createdAt": "2026-08-28T03:43:11.695Z",
-          "expiresAt": 1787974991695
-        },
-        {
-          "tokenHash": "13cb3e965a52f6fd423b5bd261d94d433f01d867c3a0442bdfcdaf73f8c0ff16",
-          "createdAt": "2026-08-28T03:44:14.656Z",
-          "expiresAt": 1787975054656
-        },
-        {
-          "tokenHash": "f5ee77c2f78b27564cdc1c6cb75b870d0b364847d7bc98b3528815f604f7c971",
-          "createdAt": "2026-08-28T03:44:26.616Z",
-          "expiresAt": 1787975066616
-        },
-        {
-          "tokenHash": "48993d860ca1d454bd46ae704811999ad06bb5a688e7ba85ca77549be2cf6a09",
-          "createdAt": "2026-08-28T04:35:16.558Z",
-          "expiresAt": 1787978116558
+          "tokenHash": "1f283ca9e9b2198aed1c01be044e3ea1ca055f198e4f6eed8b9fdbda29841776",
+          "createdAt": "2026-09-04T04:09:52.815Z",
+          "expiresAt": 1788581392815
         }
       ],
       "budgetGraphCategories": [
@@ -187,5 +372,6 @@
         }
       ]
     }
-  ]
+  ],
+  "householdInviteCode": "PayMeHouse2026!"
 }

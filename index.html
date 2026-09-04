@@ -73,7 +73,6 @@
 
       <section id="panel-balance" class="panel grouped-panel tab-panel" role="tabpanel" aria-labelledby="tab-balance">
         <h2 class="panel-title"><span class="panel-num">01</span> Balance</h2>
-        <section id="balance-hero" class="balance-hero" aria-live="polite"></section>
         <div class="section-tabs" role="tablist" aria-label="Balance views">
           <button id="balance-tab-settle" class="section-tab-button" type="button" role="tab" aria-selected="true" aria-controls="panel-settle" data-balance-tab="settle">Settle up</button>
           <button id="balance-tab-balances" class="section-tab-button" type="button" role="tab" aria-selected="false" aria-controls="panel-balances" data-balance-tab="balances">Balances</button>
@@ -324,6 +323,10 @@
         <div class="settings-bank-actions"><button id="huntington-bank-button" class="settings-action-button" type="button">Huntington</button><button id="keybank-bank-button" class="settings-action-button" type="button">KeyBank</button><button id="usbank-bank-button" class="settings-action-button" type="button">U.S. Bank</button></div>
       </div>
       <div id="developer-settings-row" class="settings-row" hidden><div class="settings-row-copy"><h3>Developer tools</h3><p>Manage the accounts that can use this ledger.</p></div><button id="developer-menu-button" class="settings-action-button" type="button">Developer menu</button></div>
+      <div class="settings-row">
+        <div class="settings-row-copy"><h3>Export your data</h3><p>Download transactions, receipt logs, graph totals, and balances as an Excel workbook.</p></div>
+        <button id="export-excel-button" class="settings-action-button" type="button">Export to Excel</button>
+      </div>
       <div class="settings-row settings-signout"><div class="settings-row-copy"><h3>Sign out</h3><p>End your session on this device.</p></div><button id="logout-button" type="button" class="settings-action-button settings-danger-button">Sign out</button></div>
     </div>
   </section>
@@ -363,10 +366,23 @@
       </div>
       <p class="developer-menu-note">Manage sign-in accounts. Deleting an account removes the person from Balances and Settle up, while keeping past receipts and transaction history.</p>
       <p id="developer-menu-error" class="auth-error" role="alert" hidden></p>
+      <section class="developer-invite-section" aria-labelledby="developer-invite-title">
+        <div>
+          <h3 id="developer-invite-title">Household invite code</h3>
+          <p class="developer-menu-note">Share this code with a roommate so they can create an account.</p>
+        </div>
+        <form id="developer-invite-form" class="developer-invite-form">
+          <label class="sr-only" for="developer-invite-code">Household invite code</label>
+          <input id="developer-invite-code" type="text" minlength="12" maxlength="128" autocomplete="off" placeholder="Create a 12+ character code" required>
+          <button id="developer-invite-copy" class="settings-action-button" type="button">Copy</button>
+          <button class="settings-action-button" type="submit">Save code</button>
+        </form>
+        <p id="developer-invite-note" class="developer-menu-note"></p>
+      </section>
       <div id="developer-account-list" class="developer-account-list"></div>
     </div>
   </section>
 
-<script src="app.js?v=20260828-bills-transfer-panel-r9"></script>
+<script src="app.js?v=20260904-excel-properties-fix-r1"></script>
 </body>
 </html>

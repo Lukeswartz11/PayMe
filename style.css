@@ -297,6 +297,11 @@ body.settings-open .settings-menu-card { touch-action: pan-y; }
 .developer-menu-heading h2 { margin: 0; font-family: var(--font-display); }
 .developer-menu-close { border: 0; background: transparent; color: var(--ink-soft); font-size: 2rem; line-height: 1; cursor: pointer; }
 .developer-menu-note { color: var(--ink-soft); font-size: 0.86rem; line-height: 1.45; }
+.developer-invite-section { margin: 1rem 0; padding: 1rem 0; border-block: 1px solid var(--paper-line); }
+.developer-invite-section h3 { margin: 0; color: var(--ink); font-size: 0.95rem; }
+.developer-invite-section .developer-menu-note { margin: 0.3rem 0 0.75rem; }
+.developer-invite-form { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 0.5rem; }
+.developer-invite-form input { min-width: 0; padding: 0.62rem; border: 2px solid var(--paper-line); border-radius: 4px; background: var(--paper); color: var(--ink); font: inherit; }
 .developer-account-list { display: grid; gap: 0.8rem; margin-top: 1.2rem; }
 .developer-account { padding: 1rem; border: 2px solid var(--paper-line); border-radius: 4px; background: var(--card); }
 .developer-account-title { margin: 0 0 0.75rem; font-family: var(--font-mono); font-size: 0.82rem; }
@@ -1574,6 +1579,8 @@ html[data-theme="dark"] .expense-form-panel { background: linear-gradient(135deg
   .settings-menu-card { max-height: calc(100dvh - 1.6rem); padding: 1.2rem; }
   .settings-notifications { align-items: flex-start; flex-direction: column; }
   .settings-row { align-items: stretch; flex-direction: column; }
+  .developer-invite-form { grid-template-columns: 1fr 1fr; }
+  .developer-invite-form input { grid-column: 1 / -1; }
   .account-name-controls { width: 100%; }
   .account-password-controls { grid-template-columns: 1fr; width: 100%; }
   .receipt-tabs { grid-template-columns: 1fr 1fr; }

@@ -19,7 +19,7 @@ const reminderCronSecret = process.env.REMINDER_CRON_SECRET || '';
 const developerAccountName = process.env.DEVELOPER_ACCOUNT_NAME || 'Luke';
 const developerAccountPassword = process.env.DEVELOPER_ACCOUNT_PASSWORD || '';
 const backupCronSecret = process.env.BACKUP_CRON_SECRET || '';
-const householdInviteCode = process.env.HOUSEHOLD_INVITE_CODE || '';
+const configuredHouseholdInviteCode = process.env.HOUSEHOLD_INVITE_CODE || '';
 const allowedOrigins = new Set((process.env.ALLOWED_ORIGINS || 'https://lukeswartz11.github.io,https://payme-9w80.onrender.com,http://localhost:3000,http://localhost:5500').split(',').map((origin) => origin.trim()).filter(Boolean));
 const publicAssetPaths = new Set(['/', '/index.html', '/app.js', '/style.css', '/manifest.webmanifest', '/push-sw.js', '/Brutus_Front.png', '/brutus_back.jpg']);
 const legacyStarterPeople = ['Luke', 'Andrew', 'Logan', 'Kai', 'Carson', 'conner'];
@@ -110,6 +110,9 @@ app.use((req, res, next) => {
 });
 app.use(cors({ origin(origin, callback) { callback(null, !origin || allowedOrigins.has(origin)); }, credentials: false, allowedHeaders: ['Content-Type', 'Authorization'] }));
 app.use(express.json({ limit: '3mb' }));
+app.get('/exceljs.min.js', (req, res) => {
+  res.type('application/javascript').sendFile(path.resolve(__dirname, 'node_modules/exceljs/dist/exceljs.min.js'));
+});
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
   if (!publicAssetPaths.has(req.path)) return res.status(404).end();
@@ -291,7 +294,7 @@ function householdBalanceCents(data) {
 
 function prepareHousehold(data) {
   if (developerAccountPassword && !strongPassword(developerAccountPassword)) throw new Error('DEVELOPER_ACCOUNT_PASSWORD must use 12+ characters with uppercase, lowercase, and a number.');
-  if (householdInviteCode && householdInviteCode.length < 12) throw new Error('HOUSEHOLD_INVITE_CODE must be at least 12 characters.');
+  if (configuredHouseholdInviteCode && configuredHouseholdInviteCode.length < 12) throw new Error('HOUSEHOLD_INVITE_CODE must be at least 12 characters.');
   let changed = false;
   const isUntouchedLegacyHousehold = data.people.length === legacyStarterPeople.length && legacyStarterPeople.every((person, index) => data.people[index] === person) && data.expenses.length === 0 && data.settlements.length === 0;
   if (isUntouchedLegacyHousehold) {
@@ -408,10 +411,11 @@ app.post('/api/auth/signup', authRateLimit, async (req, res) => {
     const name = String(req.body?.name || '').trim();
     const password = String(req.body?.password || '');
     if (!validName(name)) return res.status(400).json({ error: 'Enter a valid first name.' });
+    const data = await readPreparedData();
+    const householdInviteCode = configuredHouseholdInviteCode || String(data.householdInviteCode || '');
     if (!householdInviteCode) return res.status(503).json({ error: 'Registration is closed until the household invite code is configured.' });
     if (!secretMatches(req.body?.inviteCode || '', householdInviteCode)) return res.status(403).json({ error: 'That household invite code is not correct.' });
     if (!strongPassword(password)) return res.status(400).json({ error: 'Use 12+ characters with uppercase, lowercase, and a number.' });
-    const data = await readPreparedData();
     if (data.users.length >= maxAccounts) return res.status(403).json({ error: 'This household already has the maximum of 6 accounts.' });
     if (data.users.some((user) => getUserLoginName(user) === name.toLowerCase())) return res.status(409).json({ error: 'An account already uses that first name.' });
     const { salt, hash } = hashPassword(password);
@@ -514,6 +518,26 @@ app.put('/api/auth/account', requireAuth, async (req, res) => {
 app.get('/api/developer/accounts', requireAuth, requireDeveloper, async (req, res) => {
   const data = await readPreparedData();
   res.json({ accounts: data.users.map((user) => ({ id: user.id, name: user.name, isDeveloper: Boolean(user.isDeveloper), createdAt: user.createdAt })) });
+});
+
+app.get('/api/developer/invite-code', requireAuth, requireDeveloper, async (req, res) => {
+  const data = await readPreparedData();
+  res.json({ inviteCode: configuredHouseholdInviteCode || String(data.householdInviteCode || ''), managedByEnvironment: Boolean(configuredHouseholdInviteCode) });
+});
+
+app.put('/api/developer/invite-code', requireAuth, requireDeveloper, async (req, res) => {
+  try {
+    if (configuredHouseholdInviteCode) return res.status(409).json({ error: 'The invite code is managed by the HOUSEHOLD_INVITE_CODE environment variable. Remove it there before changing the code in the app.' });
+    const inviteCode = String(req.body?.inviteCode || '').trim();
+    if (inviteCode.length < 12 || inviteCode.length > 128) return res.status(400).json({ error: 'Use an invite code between 12 and 128 characters.' });
+    const data = await readPreparedData();
+    data.householdInviteCode = inviteCode;
+    await writeData(data);
+    res.json({ inviteCode, managedByEnvironment: false });
+  } catch (error) {
+    console.error('PUT /api/developer/invite-code error:', error);
+    res.status(500).json({ error: 'Could not save the household invite code.' });
+  }
 });
 
 app.put('/api/developer/accounts/:id', requireAuth, requireDeveloper, async (req, res) => {
