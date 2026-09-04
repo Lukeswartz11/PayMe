@@ -1829,34 +1829,6 @@ function renderBalances(balance, scores) {
   });
 }
 
-function renderBalanceHero(balance) {
-  const settlements = computeSettlements(balance);
-  const totalOutstanding = Object.values(balance)
-    .filter((amount) => amount > 0.005)
-    .reduce((sum, amount) => sum + amount, 0);
-  const peopleWithBalances = Object.values(balance).filter((amount) => Math.abs(amount) > 0.005).length;
-  const activeExpenseCount = state.expenses.filter(isActiveExpense).length;
-  const householdSpend = state.expenses.filter(isActiveExpense).reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
-  const stats = `<div class="balance-hero-stats"><span><strong>${state.people.length}</strong> ${state.people.length === 1 ? 'roommate' : 'roommates'}</span><span><strong>${activeExpenseCount}</strong> shared entries</span><span><strong>${money(householdSpend)}</strong> logged</span></div>`;
-  balanceHero.classList.toggle('is-settled', !settlements.length);
-
-  if (!settlements.length) {
-    balanceHero.innerHTML = `<div class="balance-hero-copy"><p class="balance-hero-kicker">House status <span class="balance-hero-live-dot" aria-hidden="true"></span></p><p class="balance-hero-amount">All square</p><p class="balance-hero-detail">No open balances.</p>${stats}</div><div class="balance-hero-mark" aria-hidden="true">✓</div>`;
-    return;
-  }
-
-  const next = settlements[0];
-  balanceHero.innerHTML = `
-    <div class="balance-hero-copy">
-      <p class="balance-hero-kicker">Open household balance</p>
-      <p class="balance-hero-amount">${money(totalOutstanding)}</p>
-      <p class="balance-hero-detail">${peopleWithBalances} ${peopleWithBalances === 1 ? 'person has' : 'people have'} an open balance · next: ${escapeHtml(next.from)} pays ${escapeHtml(next.to)}</p>${stats}
-    </div>
-    <div class="balance-hero-action"><span class="balance-hero-count">${settlements.length} ${settlements.length === 1 ? 'payment' : 'payments'} to clear</span><button id="balance-hero-view" type="button" class="balance-hero-button">View balances <span aria-hidden="true">→</span></button></div>
-  `;
-  document.getElementById('balance-hero-view')?.addEventListener('click', () => document.getElementById('balance-tab-balances')?.click());
-}
-
 // =============================================================
 // SETTLE UP — greedy minimal-transaction simplification
 // =============================================================
@@ -2039,75 +2011,7 @@ settingsButton.addEventListener('click', openSettingsMenu);
 settingsMenuClose.addEventListener('click', closeSettingsMenu);
 settingsMenu.addEventListener('click', (event) => { if (event.target === settingsMenu) closeSettingsMenu(); });
 
-// A small, dependency-free XLSX writer. XLSX files are ZIP archives containing
-// XML, and the ZIP format permits uncompressed entries, which keeps exports
-// available even when the installed app is offline.
-function xmlEscape(value) {
-  return String(value ?? '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[character]);
-}
-
-function excelColumnName(index) {
-  let name = '';
-  for (let number = index + 1; number; number = Math.floor((number - 1) / 26)) name = String.fromCharCode(65 + (number - 1) % 26) + name;
-  return name;
-}
-
-function sheetXml(rows, currencyColumns = []) {
-  const currency = new Set(currencyColumns);
-  const columnCount = Math.max(1, ...rows.map((row) => row.length));
-  const widths = Array.from({ length: columnCount }, (_, column) => Math.min(45, Math.max(12, ...rows.map((row) => String(row[column] ?? '').length + 2))));
-  const body = rows.map((row, rowIndex) => `<row r="${rowIndex + 1}">${row.map((value, column) => {
-    const reference = `${excelColumnName(column)}${rowIndex + 1}`;
-    if (rowIndex && currency.has(column) && Number.isFinite(Number(value))) return `<c r="${reference}" s="2"><v>${Number(value)}</v></c>`;
-    if (rowIndex && typeof value === 'number' && Number.isFinite(value)) return `<c r="${reference}"><v>${value}</v></c>`;
-    return `<c r="${reference}" t="inlineStr"${rowIndex === 0 ? ' s="1"' : ''}><is><t xml:space="preserve">${xmlEscape(value)}</t></is></c>`;
-  }).join('')}</row>`).join('');
-  const lastCell = `${excelColumnName(columnCount - 1)}${Math.max(rows.length, 1)}`;
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${widths.map((width, index) => `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`).join('')}</cols><sheetData>${body}</sheetData>${rows.length > 1 ? `<autoFilter ref="A1:${lastCell}"/>` : ''}</worksheet>`;
-}
-
-function crc32(bytes) {
-  let crc = -1;
-  for (const byte of bytes) {
-    crc ^= byte;
-    for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
-  }
-  return (crc ^ -1) >>> 0;
-}
-
-function createZip(entries) {
-  const encoder = new TextEncoder();
-  const chunks = [];
-  const directory = [];
-  let offset = 0;
-  const number = (value, size) => Array.from({ length: size }, (_, index) => value >>> (index * 8) & 255);
-  entries.forEach(([name, content]) => {
-    const nameBytes = encoder.encode(name);
-    const data = encoder.encode(content);
-    const checksum = crc32(data);
-    const local = Uint8Array.from([...number(0x04034b50, 4), 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...number(checksum, 4), ...number(data.length, 4), ...number(data.length, 4), ...number(nameBytes.length, 2), 0, 0, ...nameBytes]);
-    chunks.push(local, data);
-    directory.push(Uint8Array.from([...number(0x02014b50, 4), 20, 0, 20, 0, 0, 0, 0, 0, 0, 0, 0, ...number(checksum, 4), ...number(data.length, 4), ...number(data.length, 4), ...number(nameBytes.length, 2), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...number(offset, 4), ...nameBytes]));
-    offset += local.length + data.length;
-  });
-  const directorySize = directory.reduce((sum, entry) => sum + entry.length, 0);
-  const end = Uint8Array.from([...number(0x06054b50, 4), 0, 0, 0, 0, ...number(entries.length, 2), ...number(entries.length, 2), ...number(directorySize, 4), ...number(offset, 4), 0, 0]);
-  return new Blob([...chunks, ...directory, end], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-}
-
-function exportWorkbookSheets() {
-  const exportedAt = new Date().toISOString();
-  const transactionRows = [['Type', 'Date', 'Month', 'Category', 'Description', 'Amount', 'Paid / From', 'To', 'Split Among', 'Created At', 'Record ID']];
-  state.expenses.forEach((expense) => transactionRows.push(['Household expense', expense.date || '', expense.month || String(expense.date || '').slice(0, 7), categoryLabel(expenseCategory(expense)), expense.desc || categoryLabel(expenseCategory(expense)), Number(expense.amount) || 0, expense.paidBy || '', '', (expense.splitAmong || []).join(', '), expense.createdAt || '', expense.id || '']));
-  state.settlements.forEach((payment) => transactionRows.push(['Payment', payment.date || '', String(payment.date || '').slice(0, 7), 'Payment', payment.desc || '', Number(payment.amount) || 0, payment.from || '', payment.to || '', '', payment.createdAt || '', payment.id || '']));
-  state.budgetExpenses.forEach((expense) => transactionRows.push(['Personal expense', expense.date || '', String(expense.date || '').slice(0, 7), graphCategoryLabel(expense.category), expense.desc || '', Number(expense.amount) || 0, currentUser?.name || '', '', '', expense.createdAt || '', expense.id || '']));
-  transactionRows.splice(1, transactionRows.length - 1, ...transactionRows.slice(1).sort((a, b) => String(b[1]).localeCompare(String(a[1]))));
-
-  const receiptRows = [['Receipt Type', 'Date', 'Month', 'Category', 'Description / Store', 'Amount', 'Paid By', 'Split Among', 'Has Photo', 'Record ID']];
-  state.expenses.forEach((expense) => receiptRows.push(['Household log', expense.date || '', expense.month || String(expense.date || '').slice(0, 7), categoryLabel(expenseCategory(expense)), expense.desc || categoryLabel(expenseCategory(expense)), Number(expense.amount) || 0, expense.paidBy || '', (expense.splitAmong || []).join(', '), 'No', expense.id || '']));
-  state.budgetExpenses.forEach((expense) => receiptRows.push(['Personal log', expense.date || '', String(expense.date || '').slice(0, 7), graphCategoryLabel(expense.category), expense.desc || '', Number(expense.amount) || 0, currentUser?.name || '', '', state.personalReceipts.some((receipt) => receipt.store === expense.desc) ? 'Yes' : 'No', expense.id || '']));
-  state.personalReceipts.forEach((receipt) => receiptRows.push(['Receipt photo', String(receipt.createdAt || '').slice(0, 10), String(receipt.createdAt || '').slice(0, 7), '', receipt.store || '', '', currentUser?.name || '', '', 'Yes', receipt.id || '']));
-
+function exportGraphRows() {
   const householdMonths = new Map();
   state.expenses.filter((expense) => ['gas', 'electric', 'internet'].includes(expenseCategory(expense))).forEach((expense) => {
     const month = expense.month || String(expense.date || '').slice(0, 7) || 'Unknown';
@@ -2129,16 +2033,7 @@ function exportWorkbookSheets() {
   [...householdMonths.entries()].sort().forEach(([month, totals]) => ['gas', 'electric', 'internet'].forEach((category) => graphRows.push(['Household utility totals', month, categoryLabel(category), totals[category], 'Yes'])));
   [...personalMonths.entries()].sort().forEach(([month, totals]) => GRAPH_CATEGORIES.forEach((category) => graphRows.push(['Personal spending', month, graphCategoryLabel(category), totals[category], selectedBudgetGraphCategories().includes(category) ? 'Yes' : 'No'])));
 
-  const balances = computeBalances();
-  const balanceRows = [['Person', 'Current Balance', 'Meaning'], ...state.people.map((person) => [person, balances[person] || 0, (balances[person] || 0) > 0 ? 'Is owed money' : (balances[person] || 0) < 0 ? 'Owes money' : 'Settled'])];
-  const infoRows = [['Field', 'Value'], ['Exported at', exportedAt], ['Exported by', currentUser?.name || ''], ['Household members', state.people.join(', ')], ['Household expenses', state.expenses.length], ['Payments', state.settlements.length], ['Personal expenses', state.budgetExpenses.length], ['Receipt photos (metadata only)', state.personalReceipts.length], ['Personal graph categories', selectedBudgetGraphCategories().map(graphCategoryLabel).join(', ')], ['Privacy note', 'Receipt images, passwords, session tokens, Venmo details, and banking settings are not included.']];
-  return [
-    ['All Transactions', transactionRows, [5]],
-    ['Receipts Log', receiptRows, [5]],
-    ['Graph Data', graphRows, [3]],
-    ['Balances', balanceRows, [1]],
-    ['Export Info', infoRows, []],
-  ];
+  return graphRows;
 }
 
 function styleExcelSheet(worksheet, frozenRows = 1) {
@@ -2267,7 +2162,7 @@ function personalShareAmount(expense) {
 }
 
 async function exportToExcel() {
-  const sourceSheets = exportWorkbookSheets();
+  const graphSource = exportGraphRows();
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'PayMe';
   workbook.created = new Date();
@@ -2288,7 +2183,6 @@ async function exportToExcel() {
   logSheet.getColumn(6).numFmt = '$#,##0.00;[Red]-$#,##0.00';
   styleExcelSheet(logSheet, 4);
 
-  const graphSource = sourceSheets.find(([name]) => name === 'Graph Data')[1];
   const visibleGraphSource = [graphSource[0], ...graphSource.slice(1).filter((row) => row[0] !== 'Personal spending' || row[4] === 'Yes')];
   const graphTables = graphTablesFromRows(visibleGraphSource).map((graph) => ({ ...graph, rows: [graph.rows[0], ...graph.rows.slice(1).map((row) => [excelMonthLabel(row[0]), ...row.slice(1)])] }));
   const personalGraph = graphTables.find((graph) => graph.name === 'Personal spending');
