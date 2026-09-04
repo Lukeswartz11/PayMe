@@ -2185,34 +2185,35 @@ function graphTablesFromRows(graphRows) {
 }
 
 function graphImage(title, rows) {
-  const width = 960;
-  const height = 420;
+  const width = 1100;
+  const height = 500;
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext('2d');
   context.fillStyle = '#ffffff';
   context.fillRect(0, 0, width, height);
-  context.fillStyle = '#242424';
-  context.font = '700 24px Arial';
-  context.fillText(title, 36, 38);
+  context.fillStyle = '#202124';
+  context.font = '700 25px Arial';
+  context.fillText(title, 42, 42);
   const categories = rows[0].slice(1);
   const data = rows.slice(1);
-  const colors = ['#ba0c2f', '#666666', '#f4a261', '#2a9d8f', '#457b9d', '#8f5aa8', '#d4a017', '#4f772d'];
+  const colors = ['#BA0C2F', '#4B4F54', '#A7A8AA', '#7A1F35', '#697278', '#D6D7D8', '#8C243C', '#34373A'];
   const totals = data.map((row) => row.slice(1).reduce((sum, value) => sum + Number(value || 0), 0));
   const maximum = Math.max(...totals, 1);
-  const plot = { left: 70, top: 78, right: 930, bottom: 340 };
-  context.strokeStyle = '#d6d2ca';
-  context.fillStyle = '#666666';
+  const plot = { left: 82, top: 88, right: 1060, bottom: 362 };
+  context.strokeStyle = '#E2E3E4';
+  context.fillStyle = '#5D6268';
   context.font = '12px Arial';
   for (let tick = 0; tick <= 4; tick += 1) {
     const y = plot.bottom - (plot.bottom - plot.top) * tick / 4;
     context.beginPath(); context.moveTo(plot.left, y); context.lineTo(plot.right, y); context.stroke();
-    context.fillText(`$${(maximum * tick / 4).toFixed(0)}`, 18, y + 4);
+    context.textAlign = 'right';
+    context.fillText(`$${(maximum * tick / 4).toFixed(0)}`, plot.left - 12, y + 4);
   }
   const slot = (plot.right - plot.left) / Math.max(data.length, 1);
   data.forEach((row, index) => {
-    const barWidth = Math.min(70, slot * 0.58);
+    const barWidth = Math.min(74, slot * 0.56);
     let bottom = plot.bottom;
     row.slice(1).forEach((value, categoryIndex) => {
       const barHeight = (Number(value || 0) / maximum) * (plot.bottom - plot.top);
@@ -2220,19 +2221,23 @@ function graphImage(title, rows) {
       context.fillRect(plot.left + index * slot + (slot - barWidth) / 2, bottom - barHeight, barWidth, barHeight);
       bottom -= barHeight;
     });
-    context.fillStyle = '#242424'; context.textAlign = 'center'; context.font = '700 12px Arial';
-    context.fillText(`$${totals[index].toFixed(2)}`, plot.left + index * slot + slot / 2, Math.max(plot.top + 12, bottom - 7));
-    context.save();
-    context.translate(plot.left + index * slot + slot / 2, plot.bottom + 14);
-    context.rotate(-Math.PI / 5);
-    context.fillStyle = '#444444'; context.textAlign = 'right'; context.font = '12px Arial'; context.fillText(row[0], 0, 0);
-    context.restore();
+    if (slot >= 58) {
+      context.fillStyle = '#202124'; context.textAlign = 'center'; context.font = '700 11px Arial';
+      context.fillText(`$${totals[index].toFixed(2)}`, plot.left + index * slot + slot / 2, Math.max(plot.top + 13, bottom - 8));
+    }
+    const shortMonth = String(row[0]).replace(/^(January|February|August|September|October|November|December)/, (month) => month.slice(0, 3)).replace('March', 'Mar').replace('April', 'Apr').replace('June', 'Jun').replace('July', 'Jul');
+    context.fillStyle = '#34373A'; context.textAlign = 'center'; context.font = '11px Arial';
+    context.fillText(shortMonth, plot.left + index * slot + slot / 2, plot.bottom + 22);
   });
-  let legendX = 36;
+  let legendX = 42;
+  let legendY = 447;
   categories.forEach((category, index) => {
-    context.fillStyle = colors[index % colors.length]; context.fillRect(legendX, 390, 13, 13);
-    context.fillStyle = '#333333'; context.font = '12px Arial'; context.fillText(category, legendX + 18, 401);
-    legendX += context.measureText(category).width + 48;
+    context.font = '12px Arial';
+    const itemWidth = context.measureText(category).width + 52;
+    if (legendX + itemWidth > width - 42) { legendX = 42; legendY += 24; }
+    context.fillStyle = colors[index % colors.length]; context.fillRect(legendX, legendY - 11, 13, 13);
+    context.fillStyle = '#34373A'; context.textAlign = 'left'; context.fillText(category, legendX + 20, legendY);
+    legendX += itemWidth;
   });
   return canvas.toDataURL('image/png');
 }
@@ -2296,7 +2301,7 @@ async function exportToExcel() {
     for (let column = 2; column <= personalGraph.rows[0].length; column += 1) graphSheet.getColumn(column).numFmt = '$#,##0.00';
     const chartTop = 5 + personalGraph.rows.length;
     const imageId = workbook.addImage({ base64: graphImage('My monthly spending', personalGraph.rows), extension: 'png' });
-    graphSheet.addImage(imageId, { tl: { col: 0, row: chartTop - 1 }, ext: { width: 960, height: 420 } });
+    graphSheet.addImage(imageId, { tl: { col: 0, row: chartTop - 1 }, ext: { width: 1045, height: 475 } });
   } else graphSheet.getCell('A4').value = 'No personal spending has been recorded yet.';
   styleExcelSheet(graphSheet, 4);
 
@@ -2304,7 +2309,7 @@ async function exportToExcel() {
   state.expenses.filter((expense) => ['gas', 'electric', 'internet'].includes(expenseCategory(expense))).sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).forEach((expense) => utilityRows.push([expense.date || '', excelMonthLabel(expense.month || String(expense.date || '').slice(0, 7)), categoryLabel(expenseCategory(expense)), expense.desc || categoryLabel(expenseCategory(expense)), Number(expense.amount) || 0, expense.paidBy || '', (expense.splitAmong || []).join(', ')]));
   const utilitySheet = workbook.addWorksheet('Utilities');
   addExcelTitle(utilitySheet, 'HOUSEHOLD UTILITIES', 'Gas, electric, and internet bills with monthly totals.', 'G', 'FF4D5968');
-  utilitySheet.addTable({ name: 'PayMeUtilities', ref: 'A4', headerRow: true, style: { theme: 'TableStyleMedium4', showRowStripes: true }, columns: utilityRows[0].map((name) => ({ name })), rows: utilityRows.slice(1) });
+  utilitySheet.addTable({ name: 'PayMeUtilities', ref: 'A4', headerRow: true, style: { theme: 'TableStyleMedium2', showRowStripes: true }, columns: utilityRows[0].map((name) => ({ name })), rows: utilityRows.slice(1) });
   [13, 20, 15, 24, 14, 18, 34].forEach((width, index) => { utilitySheet.getColumn(index + 1).width = width; });
   utilitySheet.getColumn(5).numFmt = '$#,##0.00;[Red]-$#,##0.00';
   styleExcelSheet(utilitySheet, 4);
@@ -2314,12 +2319,12 @@ async function exportToExcel() {
     utilitySheet.getCell(utilityChartTop, 1).value = 'Monthly utility totals';
     utilitySheet.getCell(utilityChartTop, 1).font = { bold: true, size: 18, color: { argb: 'FFBA0C2F' } };
     const imageId = workbook.addImage({ base64: graphImage('Monthly utility totals', utilityGraph.rows), extension: 'png' });
-    utilitySheet.addImage(imageId, { tl: { col: 0, row: utilityChartTop + 1 }, ext: { width: 960, height: 420 } });
+    utilitySheet.addImage(imageId, { tl: { col: 0, row: utilityChartTop + 1 }, ext: { width: 1045, height: 475 } });
   }
 
   const receiptSheet = workbook.addWorksheet('Receipt Images');
   receiptSheet.columns = Array.from({ length: 15 }, () => ({ width: 11 }));
-  addExcelTitle(receiptSheet, 'SAVED RECEIPTS', 'Original receipt images from your personal expense log.', 'O', 'FFD69E2E');
+  addExcelTitle(receiptSheet, 'SAVED RECEIPTS', 'Original receipt images from your personal expense log.', 'O', 'FF4D5968');
   if (!state.personalReceipts.length) receiptSheet.getCell('A4').value = 'No receipt images have been saved yet.';
   for (let index = 0; index < state.personalReceipts.length; index += 1) {
     const receipt = state.personalReceipts[index];
