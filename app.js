@@ -945,13 +945,14 @@ function renderPersonalReceipts() {
     const remove = document.createElement('button');
     remove.type = 'button';
     remove.className = 'personal-receipt-delete';
-    remove.textContent = 'Delete';
+    remove.textContent = receipt.expenseId ? 'Delete both' : 'Delete';
     remove.addEventListener('click', async () => {
       try {
         await deletePersonalReceiptById(receipt.id);
-        state.personalReceipts = state.personalReceipts.filter((item) => item.id !== receipt.id);
+        state.personalReceipts = state.personalReceipts.filter((item) => item.id !== receipt.id && !(receipt.expenseId && item.expenseId === receipt.expenseId));
+        if (receipt.expenseId) state.budgetExpenses = state.budgetExpenses.filter((expense) => expense.id !== receipt.expenseId);
         saveLocalState();
-        renderPersonalReceipts();
+        renderBudget();
       } catch (error) { alert(error.message || 'Could not delete receipt photo.'); }
     });
     const view = document.createElement('button');
@@ -1081,34 +1082,35 @@ function renderBudgetBreakdown(month, totals) {
   budgetBreakdown.appendChild(categoryList);
 }
 
+let budgetSaveInProgress = false;
+let pendingBudgetExpenseId = null;
 budgetForm.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (budgetSaveInProgress) return;
   const expense = {
-    id: uid(),
+    id: pendingBudgetExpenseId || uid(),
     category: budgetCategory.value,
     desc: budgetDescription.value.trim(),
     amount: Number(budgetAmount.value),
     date: budgetDate.value,
   };
   if (!BUDGET_CATEGORIES.includes(expense.category) || !expense.desc || !Number.isFinite(expense.amount) || expense.amount <= 0 || !expense.date) return;
+  budgetSaveInProgress = true;
+  pendingBudgetExpenseId = expense.id;
+  const submitButton = budgetForm.querySelector('[type="submit"]');
+  if (submitButton) submitButton.disabled = true;
   try {
-    const savedExpense = await createBudgetExpense(expense);
-    state.budgetExpenses.unshift(savedExpense);
     const receiptFile = budgetReceiptImage.files?.[0];
     if (receiptFile) {
-      budgetReceiptStatus.textContent = 'Compressing receipt photo…';
-      try {
-        const image = await receiptImageData(receiptFile);
-        budgetReceiptStatus.textContent = 'Saving receipt…';
-        const savedReceipt = await createPersonalReceipt({ store: expense.desc, image });
-        state.personalReceipts.unshift(savedReceipt);
-        budgetReceiptStatus.textContent = 'Receipt attached.';
-      } catch (receiptError) {
-        budgetReceiptStatus.textContent = receiptError.message || 'Your expense was saved, but the receipt photo was not.';
-      }
-    } else {
-      budgetReceiptStatus.textContent = '';
+      budgetReceiptStatus.textContent = 'Processing receipt photo...';
+      expense.receiptImage = await receiptImageData(receiptFile);
     }
+    budgetReceiptStatus.textContent = receiptFile ? 'Saving expense and receipt...' : 'Saving expense...';
+    const { receipt, ...savedExpense } = await createBudgetExpense(expense);
+    state.budgetExpenses = [savedExpense, ...state.budgetExpenses.filter((item) => item.id !== savedExpense.id)];
+    if (receipt) state.personalReceipts = [receipt, ...state.personalReceipts.filter((item) => item.id !== receipt.id)];
+    pendingBudgetExpenseId = null;
+    budgetReceiptStatus.textContent = receipt ? 'Expense and receipt saved.' : 'Expense saved.';
     saveLocalState();
     budgetDescription.value = '';
     autofillBudgetDescription();
@@ -1117,7 +1119,10 @@ budgetForm.addEventListener('submit', async (event) => {
     budgetReceiptImage.value = '';
     renderBudget();
   } catch (error) {
-    alert(error.message || 'Could not save personal expense.');
+    budgetReceiptStatus.textContent = error.message || 'Could not save the expense and receipt. Please try again.';
+  } finally {
+    budgetSaveInProgress = false;
+    if (submitButton) submitButton.disabled = false;
   }
 });
 
@@ -1125,6 +1130,7 @@ async function deleteBudgetExpense(id) {
   try {
     await deleteBudgetExpenseById(id);
     state.budgetExpenses = state.budgetExpenses.filter((expense) => expense.id !== id);
+    state.personalReceipts = state.personalReceipts.filter((receipt) => receipt.expenseId !== id);
     saveLocalState();
     renderBudget();
   } catch (error) {
@@ -1147,8 +1153,9 @@ function renderBudget() {
     const deleteButton = document.createElement('button');
     deleteButton.type = 'button';
     deleteButton.className = 'log-delete-button';
-    deleteButton.textContent = 'Delete';
-    deleteButton.setAttribute('aria-label', `Delete ${expense.desc} from ${formatDate(expense.date)}`);
+    const hasReceipt = state.personalReceipts.some((receipt) => receipt.expenseId === expense.id);
+    deleteButton.textContent = hasReceipt ? 'Delete both' : 'Delete';
+    deleteButton.setAttribute('aria-label', `Delete ${expense.desc}${hasReceipt ? ' and its receipt' : ''} from ${formatDate(expense.date)}`);
     deleteButton.addEventListener('click', () => deleteBudgetExpense(expense.id));
     item.appendChild(deleteButton);
     addHoldToRevealDelete(item);

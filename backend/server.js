@@ -118,7 +118,13 @@ app.use((req, res, next) => {
   if (!publicAssetPaths.has(req.path)) return res.status(404).end();
   next();
 });
-app.use(express.static(publicRoot, { dotfiles: 'deny', index: 'index.html', maxAge: '1h', etag: true }));
+app.use(express.static(publicRoot, {
+  dotfiles: 'deny', index: 'index.html', maxAge: '1h', etag: true,
+  setHeaders(res, filePath) {
+    // Revalidate the app shell and code so reopened phones receive fixes.
+    if (['.html', '.js', '.css'].includes(path.extname(filePath))) res.setHeader('Cache-Control', 'no-cache');
+  },
+}));
 
 function authRateLimit(req, res, next) {
   const now = Date.now();
@@ -789,7 +795,8 @@ app.delete('/api/personal-receipts/:id', requireAuth, async (req, res) => {
     const data = await readData();
     const receipt = data.personalReceipts.find((candidate) => candidate.id === req.params.id && candidate.ownerId === req.userId);
     if (!receipt) return res.status(404).json({ error: 'Receipt photo not found.' });
-    data.personalReceipts = data.personalReceipts.filter((candidate) => candidate !== receipt);
+    data.personalReceipts = data.personalReceipts.filter((candidate) => candidate !== receipt && !(receipt.expenseId && candidate.expenseId === receipt.expenseId && candidate.ownerId === req.userId));
+    if (receipt.expenseId) data.budgetExpenses = data.budgetExpenses.filter((expense) => !(expense.id === receipt.expenseId && expense.ownerId === req.userId));
     await writeData(data);
     res.status(204).end();
   } catch (error) {
@@ -811,13 +818,25 @@ app.post('/api/budget-expenses', requireAuth, async (req, res) => {
     if (!desc || desc.length > 60) return res.status(400).json({ error: 'Enter a description up to 60 characters.' });
     if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'Enter a valid expense amount.' });
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Choose a valid expense date.' });
+    const image = req.body?.receiptImage;
+    if (image !== undefined && (typeof image !== 'string' || !/^data:image\/(jpeg|png|webp);base64,/.test(image) || image.length > 2_500_000)) return res.status(400).json({ error: 'The receipt photo is too large or unsupported. Please choose a smaller JPEG or PNG.' });
+    const existing = data.budgetExpenses.find((item) => item.id === String(req.body.id));
+    if (existing) {
+      if (existing.ownerId !== user.id || existing.category !== category || existing.desc !== desc || existing.amount !== Math.round(amount * 100) / 100 || existing.date !== date) return res.status(409).json({ error: 'This expense ID is already in use. Refresh before submitting a different expense.' });
+      const receipt = data.personalReceipts.find((item) => item.expenseId === existing.id && item.ownerId === user.id);
+      if (image !== undefined && (!receipt || receipt.image !== image)) return res.status(409).json({ error: 'This expense was already saved with different receipt details. Refresh to review it.' });
+      return res.json({ ...existing, receipt: receipt || null });
+    }
     const expense = { id: String(req.body.id), ownerId: user.id, category, desc, amount: Math.round(amount * 100) / 100, date, createdAt: new Date().toISOString() };
     data.budgetExpenses.unshift(expense);
+    const receipt = image === undefined ? null : { id: crypto.randomUUID(), ownerId: user.id, expenseId: expense.id, store: desc, image, createdAt: expense.createdAt };
+    if (receipt) data.personalReceipts.unshift(receipt);
     await writeData(data);
-    res.status(201).json(expense);
+    res.status(201).json({ ...expense, receipt });
   } catch (error) {
     console.error('POST /api/budget-expenses error:', error);
-    res.status(500).json({ error: 'Could not save personal expense.' });
+    const conflict = error.message === 'Data changed on another device. Refresh and try again.';
+    res.status(conflict ? 409 : 500).json({ error: conflict ? error.message : 'Could not save the expense and receipt. Your form is unchanged; please try again.' });
   }
 });
 
@@ -827,6 +846,7 @@ app.delete('/api/budget-expenses/:id', requireAuth, async (req, res) => {
     const expense = data.budgetExpenses.find((candidate) => candidate.id === req.params.id && candidate.ownerId === req.userId);
     if (!expense) return res.status(404).json({ error: 'Personal expense not found.' });
     data.budgetExpenses = data.budgetExpenses.filter((candidate) => candidate !== expense);
+    data.personalReceipts = data.personalReceipts.filter((receipt) => !(receipt.expenseId === expense.id && receipt.ownerId === req.userId));
     await writeData(data);
     res.status(204).end();
   } catch (error) {
