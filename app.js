@@ -886,32 +886,48 @@ function renderBudgetGraphSettings() {
   });
 }
 
-function receiptImageData(file) {
+async function receiptImageData(file) {
+  // Read the photo directly, including on pages with an older blob-blocking policy.
+  const source = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Could not access that photo. Save it to your phone and select it again.'));
+    reader.onabort = () => reject(new Error('Photo reading was interrupted. Please select it again.'));
+    reader.readAsDataURL(file);
+  });
   return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
     const image = new Image();
     image.onload = () => {
-      URL.revokeObjectURL(url);
-      let longestSide = Math.max(image.naturalWidth, image.naturalHeight);
-      let size = Math.min(1800, longestSide);
       const canvas = document.createElement('canvas');
-      const draw = (quality) => {
-        const scale = size / longestSide;
-        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-        canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
-        return canvas.toDataURL('image/jpeg', quality);
-      };
-      let result = draw(0.84);
-      while (result.length > 2_400_000 && size > 1000) {
-        size = Math.round(size * 0.82);
-        result = draw(0.76);
+      try {
+        const longestSide = Math.max(image.naturalWidth, image.naturalHeight);
+        if (!longestSide) throw new Error('The photo is empty. Please choose another image.');
+        let size = Math.min(1800, longestSide);
+        const draw = (quality) => {
+          const scale = size / longestSide;
+          canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+          canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+          const context = canvas.getContext('2d');
+          if (!context) throw new Error('Could not process this photo. Try a smaller image.');
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          return canvas.toDataURL('image/jpeg', quality);
+        };
+        let result = draw(0.84);
+        while (result.length > 2_400_000 && size > 1000) {
+          size = Math.round(size * 0.82);
+          result = draw(0.76);
+        }
+        if (!result.startsWith('data:image/jpeg;base64,')) throw new Error('Could not process this photo. Try a smaller image.');
+        if (result.length > 2_400_000) throw new Error('That photo is too large. Please retake it closer to the receipt.');
+        resolve(result);
+      } catch (error) {
+        reject(error);
+      } finally {
+        canvas.width = canvas.height = 0;
       }
-      if (result.length > 2_400_000) return reject(new Error('That photo is too large. Please retake it closer to the receipt.'));
-      resolve(result);
     };
-    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read that receipt image.')); };
-    image.src = url;
+    image.onerror = () => reject(new Error('This browser could not decode the photo. Try a JPEG or PNG copy, or a screenshot of the receipt.'));
+    image.src = source;
   });
 }
 
