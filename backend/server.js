@@ -734,7 +734,7 @@ app.post('/api/backups/run', async (req, res) => {
 app.put('/api/auth/budget-settings', requireAuth, async (req, res) => {
   try {
     const categories = Array.isArray(req.body?.categories) ? req.body.categories : [];
-    const allowed = ['groceries', 'eat-out', 'rent', 'fun', 'other', 'gas', 'electric', 'internet'];
+    const allowed = ['groceries', 'eat-out', 'rent', 'fun', 'other', 'fast-food', 'fuel', 'gas', 'electric', 'internet'];
     const selected = [...new Set(categories.filter((category) => allowed.includes(category)))];
     if (!selected.length) return res.status(400).json({ error: 'Choose at least one graph category.' });
 
@@ -807,7 +807,7 @@ app.post('/api/budget-expenses', requireAuth, async (req, res) => {
     const amount = Number(req.body?.amount);
     const date = String(req.body?.date || '');
     if (!user) return res.status(401).json({ error: 'Account no longer exists.' });
-    if (!req.body?.id || !['groceries', 'eat-out', 'rent', 'fun', 'other'].includes(category)) return res.status(400).json({ error: 'Choose a valid budget category.' });
+    if (!req.body?.id || !['groceries', 'eat-out', 'rent', 'fun', 'other', 'fast-food', 'fuel'].includes(category)) return res.status(400).json({ error: 'Choose a valid budget category.' });
     if (!desc || desc.length > 60) return res.status(400).json({ error: 'Enter a description up to 60 characters.' });
     if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'Enter a valid expense amount.' });
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Choose a valid expense date.' });

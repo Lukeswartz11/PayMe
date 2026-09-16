@@ -824,7 +824,8 @@ async function deleteExpense(id) {
 // =============================================================
 // PERSONAL BUDGET
 // =============================================================
-const BUDGET_CATEGORIES = ['groceries', 'eat-out', 'rent', 'fun', 'other'];
+// Personal fuel uses its own key; gas remains the household utility category.
+const BUDGET_CATEGORIES = ['groceries', 'eat-out', 'rent', 'fun', 'other', 'fast-food', 'fuel'];
 const GRAPH_CATEGORIES = [...BUDGET_CATEGORIES, 'gas', 'electric', 'internet'];
 let budgetGraphSaveInProgress = false;
 let pendingBudgetGraphCategories = null;
@@ -836,7 +837,7 @@ function selectedBudgetGraphCategories() {
 }
 
 function graphCategoryLabel(category) {
-  return BUDGET_CATEGORIES.includes(category) ? budgetCategoryLabel(category) : categoryLabel(category);
+  return category === 'gas' ? 'Gas (utility)' : BUDGET_CATEGORIES.includes(category) ? budgetCategoryLabel(category) : categoryLabel(category);
 }
 
 async function queueBudgetGraphCategorySave(categories) {
@@ -1022,7 +1023,7 @@ function wrapLogRowsByMonth(list, sectionKey) {
 }
 
 function budgetCategoryLabel(category) {
-  return category === 'eat-out' ? 'Resturants' : categoryLabel(category);
+  return ({ 'eat-out': 'Resturants', 'fast-food': 'Fast Food', fuel: 'Car Gas' })[category] || categoryLabel(category);
 }
 
 function autofillBudgetDescription() {

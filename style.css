@@ -803,6 +803,8 @@ input:focus-visible, select:focus-visible, button:focus-visible {
 .budget-log-badge-eat-out { --log-badge-color: #B66A2A; }
 .budget-log-badge-rent { --log-badge-color: #59647D; }
 .budget-log-badge-fun { --log-badge-color: #8C486F; }
+.budget-log-badge-fast-food { --log-badge-color: #A34E37; }
+.budget-log-badge-fuel { --log-badge-color: #367A83; }
 .sleek-log-description { overflow-wrap: anywhere; font-size: 0.98rem; color: var(--ink); }
 .sleek-log-route { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; color: var(--ink-faint); font-size: 0.8rem; }
 .sleek-log-route b { color: var(--ink-soft); }
@@ -1169,6 +1171,8 @@ input:focus-visible, select:focus-visible, button:focus-visible {
 .budget-breakdown-eat-out { --budget-breakdown-color: #D07A24; }
 .budget-breakdown-rent { --budget-breakdown-color: #4B5FA8; }
 .budget-breakdown-fun { --budget-breakdown-color: #A4438E; }
+.budget-breakdown-fast-food { --budget-breakdown-color: #A34E37; }
+.budget-breakdown-fuel { --budget-breakdown-color: #367A83; }
 .budget-breakdown-other { --budget-breakdown-color: #777; }
 .budget-breakdown-utilities { --budget-breakdown-color: #BB0000; }
 .utility-breakdown-gas { --budget-breakdown-color: #A56A16; }
